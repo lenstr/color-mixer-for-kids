@@ -7,7 +7,7 @@ import { icon, starSVG } from '../icons';
 import { sfx } from '../audio';
 import { say, preload } from '../speech';
 import { store } from '../storage';
-import { burst } from '../confetti';
+import { burst, warmup } from '../confetti';
 import { $, type Screen, go, html, plural, toast, topBar } from '../ui';
 
 const MATCH = 2.5; // ΔE below which the mix counts as "the same color"
@@ -55,6 +55,19 @@ export function suggest(cur: Drops, history: Pigment[], target: Drops): Suggesti
     }
   }
   return { kind: 'add', pigment: best };
+}
+
+/** Sunburst behind the win blob, as a ready-made image the GPU just spins. */
+function raysImage(hex: string) {
+  let wedges = '';
+  for (let i = 0; i < 18; i++) {
+    const a0 = (i * 20 * Math.PI) / 180;
+    const a1 = a0 + (10 * Math.PI) / 180;
+    const p = (a: number) => `${(Math.cos(a) * 100).toFixed(2)} ${(Math.sin(a) * 100).toFixed(2)}`;
+    wedges += `M0 0L${p(a0)}A100 100 0 0 1 ${p(a1)}Z`;
+  }
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='-100 -100 200 200'><defs><radialGradient id='f'><stop offset='.4' stop-color='#fff'/><stop offset='1' stop-color='#fff' stop-opacity='0'/></radialGradient><mask id='m'><circle r='100' fill='url(#f)'/></mask></defs><path mask='url(#m)' d='${wedges}' fill='${hex}' fill-opacity='.45'/></svg>`;
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
 }
 
 function starsFor(actions: number, minimal: number, hinted: boolean) {
@@ -115,7 +128,7 @@ export function mixerScreen(levelIndex: number | null): Screen {
   const pourBtn = $<HTMLButtonElement>(grid, '[data-tool="pour"]');
 
   const blob = new PaintBlob({ face: true, color: null, seed: 3 });
-  stageBlob.prepend(blob.svg);
+  stageBlob.prepend(blob.el);
   blob.setBaseMood('hungry');
 
   // ---------- jars ----------
@@ -123,7 +136,7 @@ export function mixerScreen(levelIndex: number | null): Screen {
   PAINTS.forEach((p, i) => {
     const b = html<HTMLButtonElement>(`
       <button class="jar" style="--paint:${p.hex}; --i:${i}" aria-label="${p.name} краска">
-        <span class="jar-art">${jarSVG(p)}</span>
+        ${jarSVG(p)}
         <span class="jar-label">${p.name}</span>
         <span class="jar-hint">${icon.sparkle}</span>
       </button>`);
@@ -293,7 +306,7 @@ export function mixerScreen(levelIndex: number | null): Screen {
     if (isNew && n) {
       sfx.discover();
       blob.jump();
-      const r = blob.svg.getBoundingClientRect();
+      const r = blob.el.getBoundingClientRect();
       burst([n.color.hex, '#FFD21F', '#FFFDF7'], { x: r.left + r.width / 2, y: r.top + r.height * 0.4, count: 40 });
       toast('Новый цвет!', n.color.name, n.color.hex);
       say(`found-${n.color.id}`);
@@ -415,7 +428,7 @@ export function mixerScreen(levelIndex: number | null): Screen {
     const modal = html(`
       <div class="modal-backdrop">
         <div class="modal win-card" role="dialog" aria-label="Задание выполнено">
-          <div class="win-rays" style="--c:${level!.hex}"></div>
+          <div class="win-rays"></div>
           <div class="win-blob"></div>
           <h2 class="win-title">Ура!</h2>
           <p class="win-sub">Получился <b style="--c:${level!.hex}">${level!.name.toLowerCase()}</b></p>
@@ -428,8 +441,12 @@ export function mixerScreen(levelIndex: number | null): Screen {
           </div>
         </div>
       </div>`);
+    $(modal, '.win-rays').style.setProperty('--rays', raysImage(level!.hex));
+    // the scene behind the dialog freezes, so only the dialog is redrawn
+    root.classList.add('is-paused');
+    blob.pause();
     const mini = new PaintBlob({ face: true, color: level!.hex, seed: 9, look: false });
-    $(modal, '.win-blob').append(mini.svg);
+    $(modal, '.win-blob').append(mini.el);
     mini.setBaseMood('happy');
     root.append(modal);
     setTimeout(() => mini.jump(), 350);
@@ -509,6 +526,7 @@ export function mixerScreen(levelIndex: number | null): Screen {
     el: root,
     mount() {
       renderReadout(drops);
+      warmup();
       window.addEventListener('keydown', onKey);
       if (level) {
         preload([`win-${level.id}`, ...PAINTS.map((p) => `add-${p.id}`)]);

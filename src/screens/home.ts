@@ -64,8 +64,8 @@ export function homeScreen(): Screen {
     </section>`);
 
   const blob = new PaintBlob({ face: true, color: LOGO_COLORS[0], seed: 1 });
-  $(root, '.home-blob').append(blob.svg);
-  blob.svg.addEventListener('pointerdown', () => {
+  $(root, '.home-blob').append(blob.el);
+  blob.el.addEventListener('pointerdown', () => {
     blob.jump();
     sfx.squeeze('yellow');
     say('hello');
