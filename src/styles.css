@@ -212,6 +212,7 @@ svg {
   font-family: var(--display);
   font-weight: 600;
   font-size: 18px;
+  white-space: nowrap;
   transition: transform 0.12s, box-shadow 0.12s;
 }
 .btn svg { width: 26px; height: 26px; flex: none; }
@@ -235,7 +236,7 @@ svg {
 .home {
   align-items: center;
   justify-content: center;
-  gap: clamp(10px, 2.4vh, 26px);
+  gap: clamp(10px, 2.4dvh, 26px);
   padding-top: 40px;
 }
 .home-topright {
@@ -257,7 +258,7 @@ svg {
   display: flex;
   font-family: var(--display);
   font-weight: 800;
-  font-size: clamp(56px, min(12vw, 15vh), 150px);
+  font-size: clamp(56px, min(12vw, 15dvh), 150px);
   line-height: 1;
   letter-spacing: -0.02em;
 }
@@ -300,10 +301,10 @@ svg {
   width: 100%;
   display: flex;
   justify-content: center;
-  margin-top: clamp(0px, 1vh, 12px);
+  margin-top: clamp(0px, 1dvh, 12px);
 }
 .home-blob {
-  width: clamp(200px, min(36vh, 40vw), 380px);
+  width: clamp(200px, min(36dvh, 40vw), 380px);
   cursor: pointer;
   animation: fade-up 0.6s 0.35s both;
 }
@@ -444,6 +445,10 @@ svg {
 .stage {
   grid-area: stage;
   min-height: 0;
+  /* The blob sizes itself from the room the stage really has, not from
+     vh, which on mobile browsers ignores the URL bar. */
+  container-type: size;
+  --readout-h: 124px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -452,7 +457,8 @@ svg {
 }
 .stage-blob {
   position: relative;
-  width: min(100%, 52vh, 460px);
+  /* viewBox is 300×250, so width = height × 1.2 */
+  width: min(100cqw, (100cqh - var(--readout-h)) * 1.2, 460px);
   flex: none;
 }
 .paint-blob { width: 100%; height: auto; overflow: visible; }
@@ -625,7 +631,7 @@ svg {
   font-size: 20px;
 }
 .target-swatch {
-  width: clamp(110px, 16vh, 160px);
+  width: clamp(110px, 16dvh, 160px);
   aspect-ratio: 1;
   animation: wobble 4s ease-in-out infinite;
   filter: drop-shadow(5px 6px 0 var(--ink));
@@ -759,7 +765,7 @@ svg {
 }
 .jar {
   position: relative;
-  width: clamp(76px, min(11vw, 15vh), 124px);
+  width: clamp(76px, min(11vw, 15dvh), 124px);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1220,7 +1226,7 @@ svg {
    ========================================================================== */
 
 /* portrait tablets & phones: card on top, blob in the middle, shelf below */
-@media (max-width: 860px), (orientation: portrait) and (max-width: 1100px) {
+@media (orientation: portrait) and (max-width: 1100px), (max-width: 560px) {
   .mixer-grid {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr) auto;
@@ -1249,12 +1255,24 @@ svg {
   .meter-label { margin-top: 4px; font-size: 14px; text-align: left; }
   .target-card .btn-hint { grid-area: hint; height: 48px; padding: 0 16px; font-size: 15px; }
   .replay-voice { display: none; }
-  .studio-card { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 10px 16px; }
-  .studio-card .card-kicker { width: 100%; }
-  .studio-card .collection-dots { order: 3; grid-template-columns: repeat(9, 1fr); gap: 6px; padding: 8px; }
-  .studio-card .btn-hint { height: 48px; }
-  .stage-blob { width: min(100%, 44vh, 540px); }
-  .jar { width: clamp(70px, min(14vw, 12vh), 136px); }
+  .studio-card {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 16px;
+  }
+  .studio-card .card-kicker { display: none; }
+  .studio-count { text-align: center; line-height: 1; }
+  .studio-count b { display: block; }
+  .studio-card .collection-dots {
+    grid-template-columns: repeat(9, minmax(0, 36px));
+    justify-content: center;
+    gap: 6px;
+    padding: 8px;
+  }
+  .studio-card .btn-hint { height: 54px; }
+  .stage-blob { width: min(100cqw, (100cqh - var(--readout-h)) * 1.2, 540px); }
+  .jar { width: clamp(70px, min(14vw, 12dvh), 136px); }
   .bubble { right: 0; top: -6%; font-size: 17px; max-width: 220px; }
   .lesson { display: none; }
   .home-menu { flex-direction: column; width: min(420px, 100%); }
@@ -1263,8 +1281,8 @@ svg {
 
 @media (max-width: 560px) {
   .screen { padding-left: 12px; padding-right: 12px; }
-  .icon-btn { width: 48px; height: 48px; }
-  .icon-btn svg { width: 24px; height: 24px; }
+  .icon-btn { width: 46px; height: 46px; border-width: 3.5px; box-shadow: 0 4px 0 var(--ink); }
+  .icon-btn svg { width: 22px; height: 22px; }
   .shelf { padding: 0 2px 18px; gap: 4px; }
   /* not enough room beside the jars: tools float above the shelf corners */
   .tool { position: absolute; bottom: calc(100% + 12px); margin: 0; }
@@ -1278,11 +1296,47 @@ svg {
   .eq-chip { height: 44px; font-size: 17px; }
   .eq-chip svg { width: 24px; height: 30px; }
   .readout { min-height: 96px; gap: 6px; }
+  .eq-empty { font-size: 15px; padding: 8px 14px; }
   .level-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 20px 14px; }
   .sticker-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
-  .target-card { grid-template-columns: auto 1fr; grid-template-areas: 'swatch kicker' 'swatch name' 'meter meter' 'hint hint'; }
-  .target-card .btn-hint { justify-self: stretch; margin-top: 8px; }
-  .win-title { font-size: 46px; }
+  .topbar { min-height: 52px; }
+  .topbar-title { font-size: 22px; }
+  .mixer-grid { gap: 10px; }
+  .stage { --readout-h: 104px; }
+  .card { padding: 10px 12px; border-width: 3.5px; border-radius: 22px; box-shadow: 4px 5px 0 var(--ink); }
+  .target-card {
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      'swatch name hint'
+      'swatch meter hint';
+    gap: 0 12px;
+  }
+  .target-card .card-kicker { display: none; }
+  .target-swatch { width: 58px; filter: drop-shadow(3px 4px 0 var(--ink)); }
+  .target-name { font-size: 19px; }
+  .target-card .meter { margin: 2px 0 0; }
+  .meter-track { height: 18px; border-width: 3px; }
+  .meter-label { font-size: 12px; margin-top: 2px; }
+  /* icon-only round hint button */
+  .card .btn-hint { width: 54px; height: 54px; padding: 0; border-radius: 50%; }
+  .card .btn-hint span { display: none; }
+  .studio-card { gap: 12px; }
+  .studio-count { font-size: 14px; }
+  .studio-count b { font-size: 30px; }
+  .studio-card .collection-dots { gap: 4px; padding: 6px; border-width: 2.5px; }
+  .cdot { border-width: 2px; }
+  .cdot.is-on { border-width: 2.5px; }
+  .modal-backdrop { padding: 70px 14px 14px; }
+  .win-card { padding: 0 16px 20px; box-shadow: 7px 8px 0 var(--ink); }
+  .win-blob { width: 170px; margin-top: -84px; }
+  .win-rays { width: 300px; height: 300px; top: -90px; }
+  .win-title { font-size: 42px; }
+  .win-sub { font-size: 19px; margin: 6px 0 2px; }
+  .win-stars .star { width: 54px; height: 54px; }
+  .win-stars .star:nth-child(2) { width: 66px; height: 66px; }
+  .win-actions { flex-wrap: nowrap; gap: 10px; }
+  .win-actions .btn { height: 52px; padding: 0 14px; font-size: 15px; gap: 6px; }
+  .win-actions .btn svg { width: 20px; height: 20px; }
   .menu-btn { padding: 10px 18px 10px 10px; }
   .menu-icon { width: 54px; height: 54px; }
 }
@@ -1294,7 +1348,7 @@ svg {
   .readout { min-height: 0; gap: 4px; }
   .readout-name { font-size: 22px; }
   .eq-chip { height: 40px; }
-  .jar { width: min(10vw, 17vh, 90px); }
+  .jar { width: min(10vw, 17dvh, 90px); }
   .tool span { display: none; }
   .home { padding-top: 20px; }
   .home-menu { flex-direction: row; }
@@ -1302,8 +1356,42 @@ svg {
   .menu-icon { width: 46px; height: 46px; border-radius: 16px; }
   .menu-text small { display: none; }
   .lesson { display: none; }
-  .target-swatch { width: 80px; }
-  .card { padding: 16px; }
+  .topbar { min-height: 48px; }
+  .topbar-title { font-size: 20px; }
+  .icon-btn { width: 44px; height: 44px; box-shadow: 0 4px 0 var(--ink); }
+  .icon-btn svg { width: 22px; height: 22px; }
+  /* the card takes the full right column; jars stay under the blob */
+  .mixer-grid {
+    grid-template-columns: minmax(0, 1fr) clamp(200px, 28vw, 280px);
+    grid-template-areas:
+      'stage side'
+      'shelf side';
+    gap: 4px 16px;
+    margin-top: 4px;
+  }
+  .stage { --readout-h: 86px; }
+  .side { align-items: center; }
+  .eq-empty { font-size: 14px; padding: 6px 14px; }
+  .eq-chip { height: 36px; font-size: 15px; }
+  .eq-chip svg { width: 20px; height: 26px; }
+  .eq-result .swatch { width: 40px; height: 40px; }
+  .readout-name { font-size: 20px; }
+  .bubble { font-size: 15px; padding: 8px 14px; max-width: 180px; right: -30%; }
+  .target-title, .replay-voice { display: none; }
+  .target-card { gap: 4px; }
+  .target-swatch { width: 70px; }
+  .target-name { font-size: 18px; }
+  .meter { margin: 0 0 4px; }
+  .meter-track { height: 20px; }
+  .meter-label { margin-top: 4px; font-size: 13px; }
+  .card { padding: 12px 14px; box-shadow: 5px 5px 0 var(--ink); rotate: 0.8deg; }
+  .card-kicker { font-size: 11px; }
+  .card::before { display: none; }
+  .btn { height: 48px; font-size: 15px; padding: 0 18px; }
+  .collection-dots { gap: 6px; padding: 8px; }
+  .studio-count b { font-size: 30px; }
+  .shelf { padding-bottom: 16px; }
+  .shelf::after { height: 22px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
