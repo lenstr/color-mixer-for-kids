@@ -170,6 +170,7 @@ svg {
   background: var(--card);
   border: var(--line) solid var(--ink);
   box-shadow: 0 5px 0 var(--ink);
+  flex-shrink: 0;
   transition: transform 0.12s, box-shadow 0.12s;
 }
 .icon-btn svg { width: 28px; height: 28px; }
@@ -188,6 +189,7 @@ svg {
   border: var(--line) solid var(--ink);
   font-family: var(--display);
   font-size: 20px;
+  white-space: nowrap;
 }
 .star-total .star { width: 34px; height: 34px; }
 .star-total.is-count { padding: 0 18px; font-weight: 600; }
@@ -1406,8 +1408,13 @@ svg {
   .eq-empty { font-size: 15px; padding: 8px 14px; }
   .level-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 20px 14px; }
   .sticker-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
-  .topbar { min-height: 52px; }
-  .topbar-title { font-size: 22px; }
+  /* the title takes whatever the buttons leave */
+  .topbar { min-height: 52px; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; }
+  .topbar-title { font-size: clamp(16px, 4.6vw, 22px); }
+  .topbar-right { gap: 8px; }
+  .star-total { height: 42px; font-size: 16px; padding: 0 12px 0 6px; gap: 4px; border-width: 3.5px; }
+  .star-total .star { width: 28px; height: 28px; }
+  .star-total.is-count { padding: 0 10px; font-size: 15px; }
   .mixer-grid { gap: 10px; }
   .stage { --readout-h: 104px; }
   .card { padding: 10px 12px; border-width: 3.5px; border-radius: 22px; box-shadow: 4px 5px 0 var(--ink); }
