@@ -32,6 +32,7 @@ export const icon = {
   ),
   star: wrap('<path d="M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2l-5.7 3.1 1.2-6.4-4.7-4.4 6.4-.8z"/>'),
   check: wrap('<path d="M5 12.5l4.5 4.5L19 7.5"/>'),
+  install: wrap('<path d="M12 4v11"/><path d="M7 10.5l5 5 5-5"/><path d="M5 20h14"/>'),
 };
 
 /** Chunky outlined star used for level ratings. */

@@ -5,6 +5,7 @@ import { icon } from '../icons';
 import { sfx } from '../audio';
 import { say } from '../speech';
 import { store } from '../storage';
+import { canInstall, install, onInstallChange } from '../install';
 import { $, type Screen, go, html } from '../ui';
 
 const LOGO = 'Клякса';
@@ -23,6 +24,7 @@ export function homeScreen(): Screen {
   const root = html(`
     <section class="screen home">
       <div class="home-topright">
+        <button class="install-btn" data-install hidden>${icon.install}<span>Установить</span></button>
         <button class="icon-btn" data-sound aria-label="Звук"></button>
       </div>
       <div class="home-hero">
@@ -88,6 +90,15 @@ export function homeScreen(): Screen {
     paintSound();
   });
 
+  const installBtn = $<HTMLButtonElement>(root, '[data-install]');
+  const paintInstall = () => (installBtn.hidden = !canInstall());
+  paintInstall();
+  const offInstall = onInstallChange(paintInstall);
+  installBtn.addEventListener('click', () => {
+    sfx.tap();
+    void install();
+  });
+
   root.querySelectorAll<HTMLButtonElement>('[data-go]').forEach((b) =>
     b.addEventListener('click', () => {
       sfx.tap();
@@ -100,6 +111,7 @@ export function homeScreen(): Screen {
     destroy() {
       clearInterval(cycle);
       blob.destroy();
+      offInstall();
     },
   };
 }

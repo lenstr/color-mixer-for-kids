@@ -12,6 +12,7 @@ import { levelsScreen, isUnlocked } from './screens/levels';
 import { collectionScreen } from './screens/collection';
 import { mixerScreen } from './screens/mixer';
 import { hush } from './speech';
+import './install';
 
 const app = document.getElementById('app')!;
 let current: Screen | null = null;

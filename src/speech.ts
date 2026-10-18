@@ -3,13 +3,12 @@
 
 import { store } from './storage';
 import { PHRASES } from './phrases';
+import { voiceChannel } from './audio';
 
 const BASE = `${import.meta.env.BASE_URL}voice/`;
 
-let current: HTMLAudioElement | null = null;
 let queue: string[] = [];
 let token = 0;
-const missing = new Set<string>();
 
 let ttsVoice: SpeechSynthesisVoice | null = null;
 if ('speechSynthesis' in window) {
@@ -34,24 +33,50 @@ function tts(text: string): Promise<void> {
   });
 }
 
-function playClip(id: string): Promise<void> {
+// Clips are decoded and played through Web Audio, the same context as the
+// sound effects. Plain <audio> elements need their own tap on iOS (delayed
+// prompts went silent) and make Safari send Range requests that the offline
+// cache cannot answer.
+const clips = new Map<string, Promise<AudioBuffer | null>>();
+let current: AudioBufferSourceNode | null = null;
+
+function clip(id: string) {
+  let p = clips.get(id);
+  if (!p) {
+    const { ctx } = voiceChannel();
+    p = fetch(`${BASE}${id}.mp3`)
+      .then((r) => (r.ok ? r.arrayBuffer() : null))
+      .then((buf) => (buf ? ctx.decodeAudioData(buf) : null))
+      .catch(() => null);
+    clips.set(id, p);
+  }
+  return p;
+}
+
+async function playClip(id: string, my: number): Promise<void> {
   const text = PHRASES[id] ?? id;
-  if (missing.has(id)) return tts(text);
+  const buffer = await clip(id);
+  if (my !== token) return;
+  if (!buffer) return tts(text);
+  const { ctx, out } = voiceChannel();
+  if (ctx.state !== 'running') {
+    await ctx.resume().catch(() => {});
+    // still locked: no tap yet, skip quietly
+    if ((ctx.state as AudioContextState) !== 'running') return;
+  }
   return new Promise((resolve) => {
-    const a = new Audio(`${BASE}${id}.mp3`);
-    current = a;
-    a.onended = () => resolve();
-    a.onerror = () => {
-      missing.add(id);
-      tts(text).then(resolve);
-    };
-    a.play().catch(() => resolve()); // autoplay blocked before first tap — skip quietly
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    src.connect(out);
+    src.onended = () => resolve();
+    current = src;
+    src.start();
   });
 }
 
 async function drain(my: number) {
   while (queue.length && my === token) {
-    await playClip(queue.shift()!);
+    await playClip(queue.shift()!, my);
   }
 }
 
@@ -67,18 +92,18 @@ export function hush() {
   token++;
   queue = [];
   if (current) {
-    current.pause();
+    current.onended = null;
+    try {
+      current.stop();
+    } catch {
+      /* already stopped */
+    }
     current = null;
   }
   if ('speechSynthesis' in window) speechSynthesis.cancel();
 }
 
-/** Warm the cache so the first clips play without a delay. */
+/** Load clips ahead of time so they play without a delay. */
 export function preload(ids: string[]) {
-  for (const id of ids) {
-    const l = document.createElement('link');
-    l.rel = 'prefetch';
-    l.href = `${BASE}${id}.mp3`;
-    document.head.appendChild(l);
-  }
+  ids.forEach((id) => void clip(id));
 }

@@ -5,17 +5,44 @@ import type { Pigment } from './color';
 
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
+let voiceOut: GainNode | null = null;
 
-function ac(): AudioContext | null {
-  if (!store.sound) return null;
+function ensure(): AudioContext {
   if (!ctx) {
     ctx = new AudioContext();
     master = ctx.createGain();
     master.gain.value = 0.55;
     master.connect(ctx.destination);
+    voiceOut = ctx.createGain();
+    voiceOut.connect(ctx.destination);
   }
-  if (ctx.state === 'suspended') void ctx.resume();
   return ctx;
+}
+
+function ac(): AudioContext | null {
+  if (!store.sound) return null;
+  const c = ensure();
+  if (c.state === 'suspended') void c.resume();
+  return c;
+}
+
+// Browsers keep audio locked until the first tap; unlock on any touch so
+// delayed voice lines (like the task prompt) can play afterwards. iOS only
+// accepts the unlock from the end of a touch, not from pointerdown.
+for (const type of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown']) {
+  addEventListener(
+    type,
+    () => {
+      if (store.sound && ensure().state !== 'running') void ensure().resume();
+    },
+    { capture: true, passive: true },
+  );
+}
+
+/** Shared context for the voice clips (see speech.ts). */
+export function voiceChannel() {
+  const c = ensure();
+  return { ctx: c, out: voiceOut! };
 }
 
 function tone(
