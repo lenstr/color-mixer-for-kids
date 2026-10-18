@@ -7,6 +7,30 @@
 - **Мастерская** — свободное смешивание; новые цвета попадают в коллекцию.
 - **Коллекция** — найденные цвета с рецептами, нажми на любой, чтобы его услышать.
 
+![Главный экран](docs/screenshots/home.webp)
+
+<table>
+  <tr>
+    <td><img src="docs/screenshots/studio.webp" alt="Мастерская: красная, синяя и белая дают сиреневый"></td>
+    <td><img src="docs/screenshots/win.webp" alt="Задание выполнено: три звезды"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Мастерская: капли закручиваются в кляксе, новый цвет попадает в коллекцию</sub></td>
+    <td align="center"><sub>Задание выполнено: звёзды и рецепт цвета</sub></td>
+  </tr>
+</table>
+
+<table>
+  <tr>
+    <td width="74%"><img src="docs/screenshots/hint.webp" alt="Подсказка: добавь белой"></td>
+    <td width="26%"><img src="docs/screenshots/phone.webp" alt="Задание на телефоне"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Подсказка подсвечивает нужную баночку и говорит вслух</sub></td>
+    <td align="center"><sub>На телефоне</sub></td>
+  </tr>
+</table>
+
 ## Запуск
 
 ```sh
