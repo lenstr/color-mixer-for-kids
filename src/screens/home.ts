@@ -3,7 +3,7 @@ import { MIX_COLORS, PAINTS } from '../data';
 import { dropSVG } from '../jar';
 import { icon } from '../icons';
 import { sfx } from '../audio';
-import { say } from '../speech';
+import { say, speaking } from '../speech';
 import { store } from '../storage';
 import { canInstall, install, onInstallChange } from '../install';
 import { $, type Screen, go, html } from '../ui';
@@ -66,9 +66,9 @@ export function homeScreen(): Screen {
   const blob = new PaintBlob({ face: true, color: LOGO_COLORS[0], seed: 1 });
   $(root, '.home-blob').append(blob.el);
   blob.el.addEventListener('pointerdown', () => {
-    blob.jump();
+    if (!blob.jump()) return;
     sfx.squeeze('yellow');
-    say('hello');
+    if (!speaking()) say('hello');
   });
 
   // The mascot cycles through colors, showing off a swirl each time.

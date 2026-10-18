@@ -108,9 +108,12 @@ export class PaintBlob {
     this.react('yum', 650);
   }
 
+  /** Hops if standing; returns false while still in the air. */
   jump() {
+    if (this.hop < 0) return false;
     this.hopV = -620;
     this.v += 4;
+    return true;
   }
 
   shake() {

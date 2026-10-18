@@ -68,7 +68,10 @@ async function playClip(id: string, my: number): Promise<void> {
     const src = ctx.createBufferSource();
     src.buffer = buffer;
     src.connect(out);
-    src.onended = () => resolve();
+    src.onended = () => {
+      current = null;
+      resolve();
+    };
     current = src;
     src.start();
   });
@@ -87,6 +90,8 @@ export function say(...ids: string[]) {
   queue = ids;
   void drain(token);
 }
+
+export const speaking = () => current !== null;
 
 export function hush() {
   token++;
