@@ -7,8 +7,8 @@ export default defineConfig({
   base: './',
   plugins: [
     VitePWA({
-      registerType: 'autoUpdate',
-      injectRegister: 'auto',
+      registerType: 'prompt', // src/update.ts asks before switching versions
+      injectRegister: false,
       includeManifestIcons: false, // already matched by globPatterns
       manifest: {
         id: './',
@@ -54,8 +54,6 @@ export default defineConfig({
         globIgnores: ['screenshots/**'],
         navigateFallback: 'index.html',
         cleanupOutdatedCaches: true,
-        clientsClaim: true,
-        skipWaiting: true,
       },
     }),
   ],

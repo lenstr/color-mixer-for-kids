@@ -13,6 +13,7 @@ import { collectionScreen } from './screens/collection';
 import { mixerScreen } from './screens/mixer';
 import { hush } from './speech';
 import './install';
+import './update';
 
 const app = document.getElementById('app')!;
 let current: Screen | null = null;

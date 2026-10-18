@@ -1196,6 +1196,37 @@ svg {
   to { transform: rotate(360deg); }
 }
 
+.update-banner {
+  position: fixed;
+  z-index: 95;
+  left: 50%;
+  /* top, over the title: the bottom is where kids tap the jars */
+  top: max(10px, env(safe-area-inset-top));
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 8px 8px 20px;
+  border-radius: 99px;
+  background: var(--card);
+  border: var(--line) solid var(--ink);
+  box-shadow: 0 7px 0 var(--ink);
+  width: max-content;
+  max-width: calc(100vw - 20px);
+  font-family: var(--display);
+  font-weight: 600;
+  line-height: 1.15;
+  translate: -50% 0;
+  animation: banner-in 0.5s var(--bounce) both;
+}
+.update-banner .btn { flex: none; height: 44px; padding: 0 16px; font-size: 14px; box-shadow: 0 4px 0 var(--ink); }
+@media (max-width: 560px) {
+  .update-banner { padding-left: 16px; gap: 8px; font-size: 14px; }
+  .update-banner .btn { height: 40px; padding: 0 12px; font-size: 13px; }
+}
+@keyframes banner-in {
+  from { transform: translateY(-160%); }
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -1402,7 +1433,38 @@ svg {
   .studio-card .collection-dots { gap: 4px; padding: 6px; border-width: 2.5px; }
   .cdot { border-width: 2px; }
   .cdot.is-on { border-width: 2.5px; }
-  .modal-backdrop { padding: 70px 14px 14px; }
+  .update-banner {
+  position: fixed;
+  z-index: 95;
+  left: 50%;
+  /* top, over the title: the bottom is where kids tap the jars */
+  top: max(10px, env(safe-area-inset-top));
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 8px 8px 20px;
+  border-radius: 99px;
+  background: var(--card);
+  border: var(--line) solid var(--ink);
+  box-shadow: 0 7px 0 var(--ink);
+  width: max-content;
+  max-width: calc(100vw - 20px);
+  font-family: var(--display);
+  font-weight: 600;
+  line-height: 1.15;
+  translate: -50% 0;
+  animation: banner-in 0.5s var(--bounce) both;
+}
+.update-banner .btn { flex: none; height: 44px; padding: 0 16px; font-size: 14px; box-shadow: 0 4px 0 var(--ink); }
+@media (max-width: 560px) {
+  .update-banner { padding-left: 16px; gap: 8px; font-size: 14px; }
+  .update-banner .btn { height: 40px; padding: 0 12px; font-size: 13px; }
+}
+@keyframes banner-in {
+  from { transform: translateY(-160%); }
+}
+
+.modal-backdrop { padding: 70px 14px 14px; }
   /* while the win dialog is up, nothing behind it animates */
 .mixer.is-paused .mixer-grid *,
 .mixer.is-paused .mixer-grid *::before,
