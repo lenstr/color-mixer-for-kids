@@ -52,6 +52,16 @@ npm run dev      # http://localhost:5173
 npm run build    # статическая сборка в dist/, работает из любой папки
 ```
 
+С [mise](https://mise.jdx.dev) и [overmind](https://github.com/DarthSim/overmind) dev-сервер
+работает в фоне, в tmux, и переживает закрытие терминала; mise ставит Node той же версии, что в CI:
+
+```sh
+mise install     # Node из mise.toml
+mise run dev     # запустить в фоне (Procfile)
+mise run logs    # смотреть вывод
+mise run stop    # остановить
+```
+
 Чтобы dev-сервер слушал другой адрес, задайте его в `.env.local` (файл не попадает в git):
 
 ```sh

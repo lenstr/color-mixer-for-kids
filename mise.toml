@@ -1,0 +1,14 @@
+[tools]
+node = "24" # same major as CI (.github/workflows/pages.yml)
+
+[tasks.dev]
+description = "Start the dev server in the background (overmind + tmux)"
+run = "overmind start -D"
+
+[tasks.stop]
+description = "Stop the background dev server"
+run = "overmind quit"
+
+[tasks.logs]
+description = "Follow the dev server output"
+run = "overmind echo"
