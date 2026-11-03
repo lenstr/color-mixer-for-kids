@@ -53,10 +53,11 @@ npm run build    # статическая сборка в dist/, работае�
 ```
 
 С [mise](https://mise.jdx.dev) и [overmind](https://github.com/DarthSim/overmind) dev-сервер
-работает в фоне, в tmux, и переживает закрытие терминала; mise ставит Node той же версии, что в CI:
+работает в фоне, в tmux, и переживает закрытие терминала. mise ставит overmind и Node той же
+версии, что в CI; tmux нужен системный:
 
 ```sh
-mise install     # Node из mise.toml
+mise install     # Node и overmind из mise.toml
 mise run dev     # запустить в фоне (Procfile)
 mise run logs    # смотреть вывод
 mise run stop    # остановить

@@ -21,7 +21,8 @@ paths, LAN addresses and keys out of tracked files.
 
 ## Dev server
 
-The dev server runs in the background under overmind (`Procfile`), with Node from `mise.toml`:
+The dev server runs in the background under overmind (`Procfile`). `mise install` provides Node and
+overmind from `mise.toml`; tmux comes from the system:
 
 ```sh
 overmind ps      # is it already running?

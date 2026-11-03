@@ -1,5 +1,6 @@
 [tools]
 node = "24" # same major as CI (.github/workflows/pages.yml)
+overmind = "2" # runs the Procfile in the background; needs tmux
 
 [tasks.dev]
 description = "Start the dev server in the background (overmind + tmux)"
