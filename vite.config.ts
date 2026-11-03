@@ -1,10 +1,14 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
 // Relative base so the built game also works from any static folder
 // (GitHub Pages serves it under /color-mixer-for-kids/).
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   base: './',
+  server: {
+    // DEV_HOST in .env.local (or the environment) binds the dev server to that address.
+    host: loadEnv(mode, '.', 'DEV_').DEV_HOST || undefined,
+  },
   plugins: [
     VitePWA({
       registerType: 'prompt', // src/update.ts asks before switching versions
@@ -57,4 +61,4 @@ export default defineConfig({
       },
     }),
   ],
-});
+}));
