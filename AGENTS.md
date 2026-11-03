@@ -21,18 +21,18 @@ paths, LAN addresses and keys out of tracked files.
 
 ## Dev server
 
-The dev server runs in the background under overmind (`Procfile`). `mise install` provides Node and
-overmind from `mise.toml`; tmux comes from the system:
+The dev server is the `web` daemon in `mise.toml`, supervised in the background by pitchfork
+(mise's experimental `[daemons]`). `mise install` provides Node and pitchfork:
 
 ```sh
-overmind ps      # is it already running?
-mise run dev     # start in the background
-mise run logs    # follow the output
+mise daemons ls  # is it already running?
+mise run dev     # start in the background; a no-op when it already runs
+mise run logs    # its output
 mise run stop    # stop
 ```
 
-Reuse a running server instead of starting another one: the port is fixed (`--strictPort`), so a
-second instance fails. Vite reloads on file changes and restarts on `vite.config.ts` changes by
+Run the server only through the daemon: a separate `npm run dev` fails on the fixed port
+(`--strictPort`). Vite reloads on file changes and restarts on `vite.config.ts` changes by
 itself. The listen address comes from `DEV_HOST` in `.env.local`; read the URL from
 `mise run logs` rather than assuming `localhost`.
 

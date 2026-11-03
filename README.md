@@ -52,14 +52,15 @@ npm run dev      # http://localhost:5173
 npm run build    # статическая сборка в dist/, работает из любой папки
 ```
 
-С [mise](https://mise.jdx.dev) и [overmind](https://github.com/DarthSim/overmind) dev-сервер
-работает в фоне, в tmux, и переживает закрытие терминала. mise ставит overmind и Node той же
-версии, что в CI; tmux нужен системный:
+С [mise](https://mise.jdx.dev) dev-сервер работает в фоне как
+[демон mise](https://mise.jdx.dev/daemons.html) (экспериментальная функция, её включает
+`mise.toml`) и переживает закрытие терминала. mise ставит Node той же версии, что в CI, и
+супервизор [pitchfork](https://pitchfork.jdx.dev):
 
 ```sh
-mise install     # Node и overmind из mise.toml
-mise run dev     # запустить в фоне (Procfile)
-mise run logs    # смотреть вывод
+mise install     # Node и pitchfork из mise.toml
+mise run dev     # запустить в фоне; если уже запущен, ничего не делает
+mise run logs    # вывод сервера
 mise run stop    # остановить
 ```
 

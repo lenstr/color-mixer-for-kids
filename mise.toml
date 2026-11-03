@@ -1,15 +1,24 @@
+[settings]
+experimental = true # [daemons] is experimental in mise
+
 [tools]
 node = "24" # same major as CI (.github/workflows/pages.yml)
-overmind = "2" # runs the Procfile in the background; needs tmux
+pitchfork = "2" # supervisor behind [daemons]; mise daemons stop/logs/status call it from PATH
+
+# The dev server runs in the background under pitchfork, mise's process supervisor.
+[daemons.web]
+run = "exec npm run dev -- --port 5173 --strictPort"
+# Vite may listen on DEV_HOST from .env.local rather than localhost, so wait for its banner.
+ready_output = "ready in"
 
 [tasks.dev]
-description = "Start the dev server in the background (overmind + tmux)"
-run = "overmind start -D"
+description = "Start the dev server in the background"
+run = "mise daemons start web"
 
 [tasks.stop]
 description = "Stop the background dev server"
-run = "overmind quit"
+run = "mise daemons stop web"
 
 [tasks.logs]
-description = "Follow the dev server output"
-run = "overmind echo"
+description = "Show the dev server output"
+run = "mise daemons logs web"
