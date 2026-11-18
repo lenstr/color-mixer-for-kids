@@ -14,6 +14,7 @@ import { type Drops, type Pigment, PIGMENTS, emptyDrops, mixHex, mixHexes, shade
 import { COLOR_BY_ID, type NamedColor, PAINT_BY_ID } from '../data';
 import { DROP_GLOSS, DROP_PATH } from '../jar';
 import { CARD, INK } from '../palette';
+import { onFrame } from '../render/ticker';
 
 /** A paint's drop, named like its jar. */
 const paint = <P extends Pigment>(id: P) => [id, PAINT_BY_ID[id].name] as const;
@@ -265,6 +266,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
 
   // ---------- layout ----------
   let W = 0, H = 0, PW = 0, OX = 0, dpr = 1;
+  let resized = false; // the canvas was cleared and waits for a frame
   function resize(w: number, h: number) {
     dpr = Math.min(devicePixelRatio || 1, 2);
     W = w;
@@ -274,6 +276,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     PW = Math.min(W, H * 0.95);
     OX = (W - PW) / 2;
     L = layout();
+    resized = true;
   }
   const PLANK = 30;
   /** Where things stand, in canvas CSS pixels; it changes only on resize. */
@@ -987,6 +990,8 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     const { cloudY, groundY, bTop } = L;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, W, H);
+    // a resize resets the context, and the clouds come before anything sets this
+    ctx.lineJoin = 'round';
     if (shakeT) ctx.translate(Math.sin(time * 80) * 6 * (shakeT / 0.3), 0);
 
     for (const c of clouds) for (let shift = -1; shift <= 1; shift++) drawCloud(c, cloudY, shift);
@@ -1034,16 +1039,17 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
   }
 
   // ---------- loop ----------
-  let raf = 0;
+  // The shared ticker clamps its step to 1/30 s; the game keeps its own
+  // 0.05 s clamp, so it does not slow down on 20–30 fps phones. A paused
+  // game keeps its last frame and redraws only after a resize.
   let last = performance.now();
-  const frame = (now: number) => {
+  const stop = onFrame((now) => {
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
     if (!paused) update(dt);
-    draw();
-    raf = requestAnimationFrame(frame);
-  };
-  raf = requestAnimationFrame(frame);
+    if (!paused || resized) draw();
+    resized = false;
+  });
 
   return {
     start,
@@ -1067,7 +1073,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
       else keys.delete(dir);
     },
     destroy() {
-      cancelAnimationFrame(raf);
+      stop();
     },
   };
 }
