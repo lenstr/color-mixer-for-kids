@@ -18,7 +18,7 @@ import {
   suggest,
 } from '../data';
 import type { Picture, Region } from '../coloring/pictures';
-import { emptyFill, pictureSVG } from '../coloring/render';
+import { emptyFill, pictureSVG, rasterize } from '../coloring/render';
 import { type Anchor, anchors } from '../coloring/anchors';
 import { MODES, isComplete, isPerfect } from '../coloring/rules';
 import { PaintBlob, swatchSVG } from '../blob';
@@ -619,12 +619,7 @@ export function paintScreen(pic: Picture, story?: PaintStory): Screen {
 /** The picture as a PNG on paper, for saving or sharing. */
 async function renderPNG(pic: Picture, fills: Record<string, string>): Promise<Blob> {
   const size = 1200;
-  const img = new Image();
-  img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(pictureSVG(pic, fills, { size }))}`;
-  await img.decode();
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = size;
-  canvas.getContext('2d')!.drawImage(img, 0, 0, size, size);
+  const canvas = await rasterize(pictureSVG(pic, fills, { size }), size);
   return new Promise((resolve, reject) =>
     canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob failed'))), 'image/png'),
   );

@@ -82,3 +82,14 @@ export function emptyFill(svg: SVGSVGElement) {
   const pattern = svg.querySelector('pattern');
   return pattern ? `url(#${pattern.id})` : UNPAINTED;
 }
+
+/** Draws standalone SVG markup onto a new size×size canvas. */
+export async function rasterize(svg: string, size: number, settings?: CanvasRenderingContext2DSettings) {
+  const img = new Image();
+  img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  await img.decode();
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  canvas.getContext('2d', settings)!.drawImage(img, 0, 0, size, size);
+  return canvas;
+}

@@ -5,6 +5,7 @@
 // and a distance transform finds each region's deepest pixel.
 
 import type { Picture } from './pictures';
+import { rasterize } from './render';
 
 const GRID = 100; // label map size; the artboard is 400 units
 const UNIT = 400 / GRID;
@@ -26,15 +27,9 @@ export function anchors(pic: Picture): Promise<Record<string, Anchor>> {
 
 /** Alpha of the decoration drawn at label-map size. */
 async function decoMask(pic: Picture) {
-  const img = new Image();
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="${GRID}" height="${GRID}">${pic.deco}</svg>`;
-  img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-  await img.decode();
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = GRID;
-  const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
-  ctx.drawImage(img, 0, 0);
-  return ctx.getImageData(0, 0, GRID, GRID).data;
+  const canvas = await rasterize(svg, GRID, { willReadFrequently: true });
+  return canvas.getContext('2d')!.getImageData(0, 0, GRID, GRID).data;
 }
 
 async function compute(pic: Picture): Promise<Record<string, Anchor>> {
