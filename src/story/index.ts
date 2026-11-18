@@ -41,7 +41,6 @@ export function storyCheck(hooks: StoryHooks): boolean {
 async function theft(hooks: StoryHooks) {
   await scene({
     actor: 'villain',
-    text: 'Ха-ха-ха! Я злой Кляксын! Я оставлю мир без красок! Ха-ха-ха-ха!',
     voice: 'villain-laugh',
     button: 'Ой-ой!',
   });
@@ -50,7 +49,6 @@ async function theft(hooks: StoryHooks) {
   hooks.refresh();
   await scene({
     actor: 'klyaksa',
-    text: 'Ой! Злой Кляксын забрал все цвета! Кто же нам поможет?',
     voice: 'villain-after',
     button: 'Ой-ой-ой…',
   });
@@ -59,7 +57,6 @@ async function theft(hooks: StoryHooks) {
 async function askForHelp() {
   await scene({
     actor: 'hedgehog',
-    text: 'Помоги мне, пожалуйста! Злой Кляксын забрал все цвета, и с моей полянки тоже. Раскрась её, и цвета вернутся! А я тебя награжу.',
     voice: 'hedgehog-help',
     button: 'Помогу!',
   });
@@ -73,7 +70,6 @@ export async function gladeSaved() {
   store.story = 'saved';
   await scene({
     actor: 'hedgehog',
-    text: 'Ура! Моя полянка снова цветная, и все цвета вернулись! Спасибо тебе! Вот твоя награда — волшебная золотая краска!',
     voice: 'hedgehog-thanks',
     button: 'Ура!',
   });

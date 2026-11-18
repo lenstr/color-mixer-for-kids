@@ -6,14 +6,14 @@ import { PaintBlob } from '../blob';
 import { sfx } from '../audio';
 import { say, hush } from '../speech';
 import { $, html } from '../ui';
+import { PHRASES } from '../phrases';
 import { hedgehogSVG, villainSVG } from './characters';
 
 export type Actor = 'villain' | 'hedgehog' | 'klyaksa';
 
 export interface SceneOptions {
   actor: Actor;
-  text: string;
-  /** phrase id in phrases.ts */
+  /** phrase id in phrases.ts: the bubble shows its text and the voice says it */
   voice: string;
   button: string;
 }
@@ -24,10 +24,11 @@ export const sceneOpen = () => open;
 
 export function scene(o: SceneOptions): Promise<void> {
   open = true;
+  const text = PHRASES[o.voice];
   const root = html(`
     <div class="story-backdrop is-${o.actor}">
-      <div class="story-scene" role="dialog" aria-label="${o.text}">
-        <div class="story-bubble">${o.text}</div>
+      <div class="story-scene" role="dialog" aria-label="${text}">
+        <div class="story-bubble">${text}</div>
         <div class="story-actor"></div>
         <button class="btn btn-primary story-next">${o.button}</button>
       </div>
