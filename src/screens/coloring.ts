@@ -12,7 +12,7 @@ import { type Screen, go, html, topBar } from '../ui';
 export const MODES: { id: PaintMode; name: string; note: string; icon: string }[] = [
   { id: 'free', name: 'Свободно', note: 'любые цвета', icon: icon.palette },
   { id: 'hint', name: 'С подсказкой', note: 'точки подскажут', icon: icon.bulb },
-  { id: 'task', name: 'Задание', note: 'только точный цвет', icon: icon.target },
+  { id: 'task', name: 'Задание', note: 'вспомни настоящий цвет', icon: icon.target },
 ];
 
 /** How far the kid got: 'perfect' when every part has its real color. */

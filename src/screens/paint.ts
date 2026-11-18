@@ -281,7 +281,7 @@ export function paintScreen(pic: Picture): Screen {
         sfx.full();
         bounce(r, at, hex);
         showBubble(`Сюда нужен <b style="--c:${target.hex}">${target.name.toLowerCase()}</b>`);
-        hintLayer.querySelector(`[data-id="${r.id}"]`)?.classList.add('is-wanted');
+        hintLayer.querySelector(`[data-id="${r.id}"]`)?.classList.add('is-shown', 'is-wanted');
         say('wrong-color');
       }, 320);
       return;
@@ -541,7 +541,7 @@ export function paintScreen(pic: Picture): Screen {
     }
     const target = COLOR_BY_ID[r.target];
     regionEl(r.id).classList.add('is-hinted');
-    hintLayer.querySelector(`[data-id="${r.id}"]`)?.classList.add('is-wanted');
+    hintLayer.querySelector(`[data-id="${r.id}"]`)?.classList.add('is-shown', 'is-wanted');
     myColors.querySelector(`[data-color="${target.id}"]`)?.classList.add('is-hinted');
     const s = suggest(drops, history, target.recipe);
     const lines = [`name-${target.id}`];

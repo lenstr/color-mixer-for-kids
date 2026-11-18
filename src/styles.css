@@ -1722,6 +1722,8 @@ svg {
   transition: opacity 0.3s, scale 0.3s;
 }
 .paint.is-free .hint-dot { display: none; }
+/* in the task the kid recalls the real colors; a dot shows up after a miss or a hint */
+.paint.is-task .hint-dot:not(.is-shown) { opacity: 0; scale: 0; }
 .hint-dot.is-done { opacity: 0; scale: 0; }
 .hint-dot.is-wanted { animation: dot-want 0.45s ease-in-out infinite alternate; }
 @keyframes dot-pulse {
