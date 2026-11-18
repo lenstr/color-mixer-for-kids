@@ -7,6 +7,7 @@ import { say, speaking } from '../speech';
 import { store } from '../storage';
 import { canInstall, install, onInstallChange } from '../install';
 import { parentButton } from '../parents';
+import { PICTURES } from '../coloring/pictures';
 import { $, type Screen, go, html } from '../ui';
 
 const LOGO = 'Клякса';
@@ -51,6 +52,10 @@ export function homeScreen(): Screen {
         <button class="menu-btn menu-studio" data-go="studio">
           <span class="menu-icon">${icon.palette}</span>
           <span class="menu-text"><b>Мастерская</b><small>смешивай что хочешь</small></span>
+        </button>
+        <button class="menu-btn menu-paint" data-go="coloring">
+          <span class="menu-icon">${icon.brush}</span>
+          <span class="menu-text"><b>Раскраска</b><small>${PICTURES.length} картинок</small></span>
         </button>
         <button class="menu-btn menu-book" data-go="collection">
           <span class="menu-icon">${icon.book}</span>
@@ -111,7 +116,7 @@ export function homeScreen(): Screen {
   root.querySelectorAll<HTMLButtonElement>('[data-go]').forEach((b) =>
     b.addEventListener('click', () => {
       sfx.tap();
-      go({ name: b.dataset.go as 'levels' | 'studio' | 'collection' });
+      go({ name: b.dataset.go as 'levels' | 'studio' | 'coloring' | 'collection' });
     }),
   );
 

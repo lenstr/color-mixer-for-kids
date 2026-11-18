@@ -3,6 +3,7 @@
 // falls back to the browser's speech synthesis if it is missing.
 
 import { ALL_COLORS, MIX_COLORS, PAINTS } from './data';
+import { PICTURES } from './coloring/pictures';
 
 const lc = (s: string) => s.toLowerCase();
 
@@ -31,7 +32,19 @@ export const PHRASES: Record<string, string> = {
   collection: 'Это твоя коллекция цветов!',
   'all-found': 'Ура! Все цвета найдены! Ты настоящий художник!',
   pour: 'Буль-буль-буль!',
+  coloring: 'Выбери картинку и раскрась её!',
+  'mode-free': 'Раскрашивай как хочешь!',
+  'mode-hint': 'Точки подскажут, какой цвет нужен!',
+  'mode-task': 'Подбери такой же цвет, как на точке!',
+  'need-paint': 'Сначала набери краску! Нажми на баночку.',
+  'wrong-color': 'Ой, сюда нужен другой цвет!',
+  'picture-done': 'Готово! Какая красивая картинка!',
+  'picture-perfect': 'Ура! Все цвета как настоящие!',
 };
+
+for (const p of PICTURES) {
+  PHRASES[`paint-${p.id}`] = `Раскрась ${p.acc}!`;
+}
 
 for (const p of PAINTS) {
   PHRASES[`add-${p.id}`] = `Добавь ${p.genitive} краски!`;

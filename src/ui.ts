@@ -16,7 +16,9 @@ export type Route =
   | { name: 'levels' }
   | { name: 'collection' }
   | { name: 'studio' }
-  | { name: 'level'; index: number };
+  | { name: 'level'; index: number }
+  | { name: 'coloring' }
+  | { name: 'paint'; id: string };
 
 let navigate: (r: Route) => void = () => {};
 export const setNavigator = (fn: (r: Route) => void) => (navigate = fn);

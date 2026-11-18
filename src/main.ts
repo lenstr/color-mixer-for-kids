@@ -11,6 +11,9 @@ import { homeScreen } from './screens/home';
 import { levelsScreen, isUnlocked } from './screens/levels';
 import { collectionScreen } from './screens/collection';
 import { mixerScreen } from './screens/mixer';
+import { coloringScreen } from './screens/coloring';
+import { paintScreen } from './screens/paint';
+import { PICTURE_BY_ID } from './coloring/pictures';
 import { MIX_COLORS } from './data';
 import { hush } from './speech';
 import './install';
@@ -31,11 +34,17 @@ function build(r: Route): Screen {
       return mixerScreen(null);
     case 'level':
       return isUnlocked(r.index) ? mixerScreen(r.index) : levelsScreen();
+    case 'coloring':
+      return coloringScreen();
+    case 'paint':
+      return paintScreen(PICTURE_BY_ID[r.id]);
   }
 }
 
 function toHash(r: Route) {
-  return r.name === 'level' ? `#level-${r.index + 1}` : r.name === 'home' ? '#' : `#${r.name}`;
+  if (r.name === 'level') return `#level-${r.index + 1}`;
+  if (r.name === 'paint') return `#paint-${r.id}`;
+  return r.name === 'home' ? '#' : `#${r.name}`;
 }
 
 function fromHash(): Route {
@@ -45,7 +54,9 @@ function fromHash(): Route {
     const index = Number(m[1]) - 1;
     return MIX_COLORS[index] ? { name: 'level', index } : { name: 'levels' };
   }
-  if (h === 'levels' || h === 'collection' || h === 'studio') return { name: h };
+  const p = h.match(/^paint-(\w+)$/);
+  if (p) return PICTURE_BY_ID[p[1]] ? { name: 'paint', id: p[1] } : { name: 'coloring' };
+  if (h === 'levels' || h === 'collection' || h === 'studio' || h === 'coloring') return { name: h };
   return { name: 'home' };
 }
 

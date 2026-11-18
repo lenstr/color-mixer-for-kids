@@ -35,6 +35,14 @@ export const icon = {
   gear: wrap(
     '<circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/><circle cx="12" cy="12" r="6.5"/>',
   ),
+  brush: wrap(
+    '<path d="M14.5 4.5l5 5-7.5 7.5-5-5z" fill="currentColor"/><path d="M7 12l5 5"/><path d="M7.5 16.5c-2 0-3.5 1.4-3.5 3.5h3.5c2 0 3.5-1.5 3.5-3.5"/>',
+  ),
+  download: wrap('<path d="M12 3.5v11"/><path d="M7 10l5 5 5-5"/><path d="M4.5 16v3.5h15V16"/>'),
+  eraser: wrap(
+    '<path d="M4 15.5l9.5-9.5 6 6-7.5 7.5H8.5z"/><path d="M9 10.5l6 6"/><path d="M12 19.5h8"/>',
+  ),
+  target: wrap('<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1" fill="currentColor"/>'),
   install: wrap('<path d="M12 4v11"/><path d="M7 10.5l5 5 5-5"/><path d="M5 20h14"/>'),
 };
 

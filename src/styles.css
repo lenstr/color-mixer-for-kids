@@ -1561,6 +1561,315 @@ svg {
 }
 
 /* ==========================================================================
+   COLORING
+   ========================================================================== */
+
+.menu-paint { --icon-bg: var(--orange); }
+.menu-paint .menu-icon { color: #fff; }
+.menu-btn:nth-child(4) { animation-delay: 0.85s; }
+/* four menu buttons: one row on wide screens, two by two otherwise */
+@media (min-width: 900px) {
+  .home-menu { display: grid; grid-template-columns: repeat(2, minmax(250px, auto)); }
+}
+@media (min-width: 1240px) {
+  .home-menu { grid-template-columns: repeat(4, auto); }
+  .menu-btn { min-width: 0; }
+}
+
+/* ---------- picker ---------- */
+
+.coloring-wrap { max-width: 1180px; margin: 6px auto 0; }
+.mode-switch {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(8px, 1.6vw, 18px);
+  max-width: 900px;
+  margin: 0 auto;
+}
+.mode-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px 10px 10px;
+  border-radius: 24px;
+  background: var(--card);
+  border: var(--line) solid var(--ink);
+  box-shadow: 0 6px 0 var(--ink);
+  text-align: left;
+  transition: transform 0.15s var(--bounce), box-shadow 0.15s, background 0.2s;
+}
+.mode-btn:active { transform: translateY(5px); box-shadow: 0 1px 0 var(--ink); }
+.mode-btn.is-on { background: var(--yellow); }
+.mode-icon {
+  width: 50px;
+  height: 50px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  border: 3.5px solid var(--ink);
+  background: var(--paper);
+}
+.mode-icon svg { width: 28px; height: 28px; }
+.mode-btn.is-on .mode-icon { background: var(--card); }
+.mode-text { display: flex; flex-direction: column; min-width: 0; }
+.mode-text b { font-family: var(--display); font-weight: 800; font-size: 17px; }
+.mode-text small { font-size: 14px; color: var(--ink-2); }
+.mode-btn.is-on .mode-text small { color: var(--ink); }
+
+.paint-grid-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 30px 24px;
+  margin-top: 30px;
+}
+.paint-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 12px 14px;
+  border-radius: 28px;
+  background: var(--card);
+  border: var(--line) solid var(--ink);
+  box-shadow: 0 8px 0 var(--ink);
+  rotate: calc((var(--i) - 3.5) * 0.4deg);
+  transition: transform 0.15s var(--bounce), box-shadow 0.15s;
+  animation: fade-up 0.5s both;
+  animation-delay: calc(var(--i) * 50ms);
+}
+.paint-tile:hover { transform: translateY(-4px) rotate(-1.5deg); box-shadow: 0 12px 0 var(--ink); }
+.paint-tile:active { transform: translateY(6px); box-shadow: 0 2px 0 var(--ink); }
+.paint-tile.is-perfect { background: color-mix(in oklab, var(--yellow) 30%, var(--card)); }
+.paint-thumb { display: block; width: 100%; aspect-ratio: 1; }
+.paint-thumb .picture-svg { display: block; width: 100%; height: 100%; }
+.paint-name { font-family: var(--display); font-weight: 800; font-size: 18px; }
+.paint-badge {
+  position: absolute;
+  top: -14px;
+  right: -12px;
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--green);
+  color: #fff;
+  border: var(--line) solid var(--ink);
+  rotate: 10deg;
+}
+.paint-badge svg { width: 24px; height: 24px; }
+.paint-badge.is-perfect { background: var(--yellow); color: var(--ink); }
+.paint-badge.is-perfect svg { fill: var(--card); }
+
+/* ---------- painting ---------- */
+
+.mode-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 52px;
+  padding: 0 16px 0 12px;
+  border-radius: 99px;
+  background: var(--card);
+  border: var(--line) solid var(--ink);
+  font-family: var(--display);
+  font-size: 15px;
+  white-space: nowrap;
+}
+.mode-chip svg { width: 24px; height: 24px; }
+
+.paint-stage { --tools-h: 76px; justify-content: center; gap: 0; }
+.picture-wrap {
+  position: relative;
+  width: min(100cqw - 14px, 100cqh - var(--tools-h) - 10px);
+  aspect-ratio: 1;
+  flex: none;
+}
+.picture-wrap::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  translate: 8px 9px;
+  border-radius: 5%;
+  background: var(--ink);
+}
+.picture-wrap .picture-svg {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+.picture-svg.is-cheering { animation: cheer 0.9s var(--bounce); }
+@keyframes cheer {
+  30% { transform: scale(1.04) rotate(-1.5deg); }
+  60% { transform: scale(0.99) rotate(1deg); }
+}
+.paint .region { cursor: pointer; }
+.region.is-hinted .region-line { animation: line-glow 0.7s ease-in-out infinite alternate; }
+@keyframes line-glow {
+  to { stroke: var(--yellow); stroke-width: 10px; }
+}
+
+.hint-dot {
+  stroke: var(--ink);
+  stroke-width: 3.5px;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: dot-pulse 1.8s ease-in-out infinite;
+  transition: opacity 0.3s, scale 0.3s;
+}
+.paint.is-free .hint-dot { display: none; }
+.hint-dot.is-done { opacity: 0; scale: 0; }
+.hint-dot.is-wanted { animation: dot-want 0.45s ease-in-out infinite alternate; }
+@keyframes dot-pulse {
+  50% { transform: scale(1.18); }
+}
+@keyframes dot-want {
+  to { transform: scale(1.7); }
+}
+
+.paint-tools {
+  height: var(--tools-h);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding-top: 8px;
+}
+.paint-tool {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 50px;
+  padding: 0 18px 0 14px;
+  border-radius: 99px;
+  background: var(--card);
+  border: 3.5px solid var(--ink);
+  box-shadow: 0 5px 0 var(--ink);
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 15px;
+  transition: transform 0.12s, box-shadow 0.12s, background 0.2s;
+}
+.paint-tool svg { width: 24px; height: 24px; }
+.paint-tool:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--ink); }
+.paint-tool:disabled { opacity: 0.4; cursor: default; }
+.paint-tool:disabled:active { transform: none; box-shadow: 0 5px 0 var(--ink); }
+.paint-tool.is-armed { background: var(--red); color: var(--card); }
+.paint-tool.is-hinted { background: var(--yellow); animation: hint-jiggle 1.2s ease-in-out infinite; }
+
+.brush-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.brush-blob { position: relative; width: clamp(120px, 17dvh, 180px); }
+.brush-name.readout-name { font-size: clamp(19px, 2vw, 26px); }
+/* the card sits at the screen edge: the bubble opens above the blob */
+.brush-blob .bubble {
+  top: auto;
+  right: auto;
+  bottom: 96%;
+  left: 50%;
+  translate: -50% 0;
+  width: max-content;
+  max-width: 250px;
+  font-size: 18px;
+  transform-origin: 50% 115%;
+}
+.brush-blob .bubble::after { left: calc(50% - 11px); }
+.my-colors {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px;
+  width: 100%;
+  padding: 8px;
+  border-radius: 18px;
+  background: var(--paper);
+  border: 3px dashed rgb(43 35 64 / 0.3);
+}
+.my-color {
+  aspect-ratio: 1;
+  border-radius: 50%;
+  transition: transform 0.15s var(--bounce);
+}
+.my-color .swatch { display: block; width: 100%; height: 100%; }
+.my-color:active { transform: scale(0.88); }
+.my-color.is-on { transform: scale(1.12); background: radial-gradient(circle, var(--yellow) 58%, transparent 60%); }
+.my-color.is-hinted { animation: hint-jiggle 1s ease-in-out infinite; background: radial-gradient(circle, var(--yellow) 58%, transparent 60%); }
+
+@media (orientation: portrait) and (max-width: 1100px), (max-width: 560px) {
+  .mode-chip { height: 46px; }
+  .brush-card {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      'blob name hint'
+      'blob colors hint';
+    align-items: center;
+    gap: 4px 12px;
+  }
+  .brush-card .card-kicker { display: none; }
+  .brush-blob { grid-area: blob; width: 104px; }
+  .brush-name { grid-area: name; justify-self: start; }
+  .brush-name.readout-name { font-size: 20px; }
+  .brush-card .btn-hint { grid-area: hint; }
+  .my-colors {
+    grid-area: colors;
+    display: flex;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding: 5px;
+    border-width: 2.5px;
+  }
+  .my-color { width: 40px; flex: none; }
+  /* the card is a strip at the top: the bubble opens beside the blob */
+  .brush-blob .bubble { top: 8%; bottom: auto; left: 88%; translate: 0 0; max-width: min(250px, 60vw); transform-origin: 0 50%; }
+  .brush-blob .bubble::after { display: none; }
+}
+
+@media (max-width: 560px) {
+  .mode-btn { flex-direction: column; gap: 6px; padding: 10px 6px; text-align: center; }
+  .mode-text small { display: none; }
+  .mode-text b { font-size: 13px; }
+  .mode-icon { width: 42px; height: 42px; }
+  .paint-grid-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 14px; margin-top: 22px; }
+  .paint-tile { padding: 8px 8px 10px; border-radius: 22px; }
+  .paint-name { font-size: 14px; }
+  .paint-badge { width: 38px; height: 38px; top: -10px; right: -8px; }
+  .mode-chip { width: 42px; height: 42px; padding: 0; justify-content: center; border-width: 3.5px; }
+  .mode-chip span { display: none; }
+  .paint-stage { --tools-h: 62px; }
+  .paint-tool { height: 46px; padding: 0 12px; }
+  .paint-tool span { display: none; }
+  .paint-tool.is-armed span { display: inline; }
+  .brush-blob { width: 76px; }
+  .brush-name.readout-name { font-size: 17px; }
+  .my-color { width: 34px; }
+}
+
+@media (max-height: 560px) and (orientation: landscape) {
+  .home-menu { display: grid; grid-template-columns: repeat(4, auto); gap: 10px; }
+  .menu-btn { gap: 8px; padding: 6px 12px 6px 6px; }
+  .menu-text b { font-size: 16px; }
+  /* height is scarce: the tools stand in a column beside the picture */
+  .paint-stage { --tools-h: 0px; flex-direction: row; gap: 14px; }
+  .picture-wrap { width: min(100cqw - 74px, 100cqh - 12px); }
+  .paint-tools { flex-direction: column; height: auto; padding: 0; gap: 10px; }
+  .paint-tool { height: 42px; }
+  .paint-tool span, .mode-chip span { display: none; }
+  .brush-card { gap: 6px; }
+  .brush-card .card-kicker { display: none; }
+  .brush-blob { width: 90px; }
+  .my-colors { gap: 4px; padding: 5px; }
+  .mode-chip { height: 44px; }
+}
+
+/* ==========================================================================
    PARENT PANEL
    ========================================================================== */
 
