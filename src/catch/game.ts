@@ -220,6 +220,13 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
   let shownN = 0; // drops that reached the paint
   let shownFill = 0;
   let tint = { from: '', to: '', t: 1 };
+  /** The paint's color as it fades from `tint.from` to `tint.to`, with the
+   * shades of its surface line and ripples; mixed only when it changes. */
+  let mix = { hex: '', edge: '', ring: '' };
+  function remix() {
+    const hex = tint.t < 1 ? mixHexes(tint.from, tint.to, 1 - (1 - tint.t) ** 3) : tint.to;
+    if (hex !== mix.hex) mix = { hex, edge: hex && shade(hex, 0.35), ring: hex && shade(hex, 0.5) };
+  }
   let sinking: { dx: number; y: number; vy: number; r: number; kind: Paint; combo: number }[] = [];
   let ripples: { dx: number; t: number }[] = [];
   let swirls: { dx: number; t: number; hex: string; spin: number }[] = [];
@@ -232,6 +239,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     shownN = 0;
     shownFill = 0;
     tint = { from: '', to: '', t: 1 };
+    remix();
     sinking = [];
     ripples = [];
     swirls = [];
@@ -436,6 +444,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     prune(sinking, (d) => d.y !== Infinity);
     shownFill += (shownN / capacity() - shownFill) * Math.min(1, dt * 12);
     if (tint.t < 1) tint.t = Math.min(1, tint.t + dt / 0.7);
+    remix();
     for (const r of ripples) r.t += dt;
     prune(ripples, (r) => r.t < 0.6);
     for (const w of swirls) w.t += dt;
@@ -853,12 +862,10 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     ctx.fill();
     const inner = bBot - (bTop + rimH);
     const surface = bBot - inner * shownFill;
-    const hex = mixHex(shown);
     ctx.save();
     body();
     ctx.clip();
-    if (hex) {
-      const color = tint.t < 1 ? mixHexes(tint.from, tint.to, 1 - (1 - tint.t) ** 3) : hex;
+    if (mix.hex) {
       const amp = 2 + slosh * 5;
       const wave = (i: number) => surface + Math.sin(i * 0.8 + time * 5) * amp * (1 - Math.abs(i - 12) / 30);
       const paint = () => {
@@ -869,7 +876,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
         ctx.closePath();
       };
       paint();
-      ctx.fillStyle = color;
+      ctx.fillStyle = mix.hex;
       ctx.fill();
       // each new color swirls into the mix and fades into it
       ctx.save();
@@ -896,7 +903,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
       }
       ctx.globalAlpha = 1;
       ctx.restore();
-      ctx.strokeStyle = shade(color, 0.35);
+      ctx.strokeStyle = mix.edge;
       ctx.lineWidth = 3.5;
       ctx.beginPath();
       for (let i = 0; i <= 24; i++) {
@@ -908,7 +915,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
       for (const r of ripples) {
         const p = r.t / 0.6;
         ctx.globalAlpha = 1 - p;
-        ctx.strokeStyle = shade(color, 0.5);
+        ctx.strokeStyle = mix.ring;
         ctx.lineWidth = 2.5 * (1 - p) + 0.5;
         ctx.beginPath();
         ctx.ellipse(x + r.dx, surface + 1, bw * (0.08 + 0.32 * p), bw * (0.025 + 0.07 * p), 0, 0, Math.PI * 2);
