@@ -27,8 +27,8 @@ export function collectionScreen(): Screen {
         <h2 class="section-title">Основные краски</h2>
         <div class="basics">
           ${basicColors(store.gold).map(
-            (c, i) => `<button class="basic" style="--c:${c.hex}; --i:${i}" data-say="name-${c.id}">
-              ${swatchSVG(c.hex, i + 30)}<span>${c.name}</span></button>`,
+            (c, i) => `<button class="basic${c.id === 'gold' ? ' is-gold' : ''}" style="--c:${c.hex}; --i:${i}" data-say="name-${c.id}">
+              <span class="basic-swatch">${swatchSVG(c.hex, i + 30)}</span><span>${c.name}</span></button>`,
           ).join('')}
         </div>
         <h2 class="section-title">Смешанные цвета <small>нажми, чтобы услышать</small></h2>
