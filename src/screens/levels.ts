@@ -10,7 +10,6 @@ import { type Screen, go, html, topBar } from '../ui';
 const OPEN_AHEAD = 3;
 
 export function isUnlocked(i: number) {
-  if (!MIX_COLORS[i]) return false;
   if (store.unlockAll || store.stars(MIX_COLORS[i].id) > 0) return true;
   let furthest = -1;
   MIX_COLORS.forEach((c, k) => {

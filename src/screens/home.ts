@@ -6,7 +6,7 @@ import { sfx } from '../audio';
 import { say, speaking } from '../speech';
 import { store } from '../storage';
 import { canInstall, install, onInstallChange } from '../install';
-import { closeParentPanel, parentButton } from '../parents';
+import { parentButton } from '../parents';
 import { $, type Screen, go, html } from '../ui';
 
 const LOGO = 'Клякса';
@@ -20,8 +20,6 @@ const LESSONS: [string, string, string][] = [
 ];
 
 export function homeScreen(): Screen {
-  const stars = store.totalStars();
-  const found = store.discoveredCount();
   const root = html(`
     <section class="screen home">
       <div class="home-topright">
@@ -48,7 +46,7 @@ export function homeScreen(): Screen {
       <nav class="home-menu">
         <button class="menu-btn menu-play" data-go="levels">
           <span class="menu-icon">${icon.play}</span>
-          <span class="menu-text"><b>Играть</b><small>${stars ? `${stars} ★ из ${MIX_COLORS.length * 3}` : `${MIX_COLORS.length} заданий`}</small></span>
+          <span class="menu-text"><b>Играть</b><small data-stars></small></span>
         </button>
         <button class="menu-btn menu-studio" data-go="studio">
           <span class="menu-icon">${icon.palette}</span>
@@ -56,7 +54,7 @@ export function homeScreen(): Screen {
         </button>
         <button class="menu-btn menu-book" data-go="collection">
           <span class="menu-icon">${icon.book}</span>
-          <span class="menu-text"><b>Коллекция</b><small>${found} из ${MIX_COLORS.length} цветов</small></span>
+          <span class="menu-text"><b>Коллекция</b><small data-found></small></span>
         </button>
       </nav>
       <div class="home-paints" aria-hidden="true">
@@ -80,8 +78,15 @@ export function homeScreen(): Screen {
     blob.eat(c.hex, c.hex);
   }, 2600);
 
-  // Progress shown on the menu may change, so redraw the whole screen.
-  $(root, '.home-topright').prepend(parentButton(() => go({ name: 'home' })));
+  const paintProgress = () => {
+    const stars = store.totalStars();
+    $(root, '[data-stars]').textContent = stars
+      ? `${stars} ★ из ${MIX_COLORS.length * 3}`
+      : `${MIX_COLORS.length} заданий`;
+    $(root, '[data-found]').textContent = `${store.discoveredCount()} из ${MIX_COLORS.length} цветов`;
+  };
+  paintProgress();
+  $(root, '.home-topright').prepend(parentButton(paintProgress));
 
   const soundBtn = $(root, '[data-sound]');
   const paintSound = () => {
@@ -116,7 +121,6 @@ export function homeScreen(): Screen {
       clearInterval(cycle);
       blob.destroy();
       offInstall();
-      closeParentPanel();
     },
   };
 }

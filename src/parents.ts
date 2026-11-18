@@ -7,19 +7,13 @@ import { $, html } from './ui';
 
 const HOLD_MS = 1500;
 
-let closeOpen: (() => void) | null = null;
-
-/** Closes the panel without reporting changes, e.g. when the screen under it goes away. */
-export function closeParentPanel() {
-  closeOpen?.();
-}
-
 /** A button that opens the parent panel only after it is held down. */
 export function parentButton(onChange: () => void) {
   const btn = html<HTMLButtonElement>(`
     <button class="icon-btn parent-btn" aria-label="Для взрослых: подержи кнопку">
       ${icon.gear}<span class="parent-tip">Подержи</span>
     </button>`);
+  btn.style.setProperty('--hold-ms', `${HOLD_MS}ms`);
   let timer = 0;
   const cancel = () => {
     clearTimeout(timer);
@@ -32,7 +26,7 @@ export function parentButton(onChange: () => void) {
     timer = window.setTimeout(() => {
       cancel();
       sfx.tap();
-      openParentPanel(onChange);
+      openParentPanel(btn, onChange);
     }, HOLD_MS);
   });
   btn.addEventListener('pointerup', () => {
@@ -46,17 +40,18 @@ export function parentButton(onChange: () => void) {
   btn.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
-      openParentPanel(onChange);
+      openParentPanel(btn, onChange);
     }
   });
   return btn;
 }
 
-function openParentPanel(onChange: () => void) {
+/** Opens over the screen that holds `btn`, so the panel goes away with that screen. */
+function openParentPanel(btn: HTMLElement, onChange: () => void) {
   let changed = false;
   const modal = html(`
     <div class="modal-backdrop">
-      <div class="modal parent-card" role="dialog" aria-modal="true" aria-labelledby="parent-title">
+      <div class="modal parent-card" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="parent-title">
         <h2 class="parent-title" id="parent-title">Для взрослых</h2>
         <label class="parent-row">
           <input type="checkbox" data-unlock ${store.unlockAll ? 'checked' : ''}>
@@ -71,18 +66,9 @@ function openParentPanel(onChange: () => void) {
       </div>
     </div>`);
 
-  const dismiss = () => {
-    closeOpen = null;
-    removeEventListener('keydown', onKey);
-    modal.remove();
-  };
   const close = () => {
-    dismiss();
+    modal.remove();
     if (changed) onChange();
-  };
-  closeOpen = dismiss;
-  const onKey = (e: KeyboardEvent) => {
-    if (e.key === 'Escape') close();
   };
 
   $<HTMLInputElement>(modal, '[data-unlock]').addEventListener('change', (e) => {
@@ -90,6 +76,7 @@ function openParentPanel(onChange: () => void) {
     changed = true;
   });
   const resetBtn = $<HTMLButtonElement>(modal, '[data-reset]');
+  const doneBtn = $<HTMLButtonElement>(modal, '[data-close]');
   const confirmBtn = $<HTMLButtonElement>(modal, '[data-confirm]');
   resetBtn.addEventListener('click', () => {
     resetBtn.hidden = true;
@@ -101,12 +88,16 @@ function openParentPanel(onChange: () => void) {
     changed = true;
     confirmBtn.textContent = 'Стёрто';
     confirmBtn.disabled = true;
+    // Escape is heard only inside the panel, and a disabled button drops focus
+    doneBtn.focus();
   });
-  $(modal, '[data-close]').addEventListener('click', close);
+  doneBtn.addEventListener('click', close);
   modal.addEventListener('click', (e) => {
     if (e.target === modal) close();
   });
-  addEventListener('keydown', onKey);
-  document.body.append(modal);
-  $<HTMLElement>(modal, '[data-close]').focus();
+  modal.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') close();
+  });
+  btn.closest('.screen')!.append(modal);
+  doneBtn.focus();
 }

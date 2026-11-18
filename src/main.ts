@@ -11,6 +11,7 @@ import { homeScreen } from './screens/home';
 import { levelsScreen, isUnlocked } from './screens/levels';
 import { collectionScreen } from './screens/collection';
 import { mixerScreen } from './screens/mixer';
+import { MIX_COLORS } from './data';
 import { hush } from './speech';
 import './install';
 import './update';
@@ -40,7 +41,10 @@ function toHash(r: Route) {
 function fromHash(): Route {
   const h = location.hash.slice(1);
   const m = h.match(/^level-(\d+)$/);
-  if (m) return { name: 'level', index: Number(m[1]) - 1 };
+  if (m) {
+    const index = Number(m[1]) - 1;
+    return MIX_COLORS[index] ? { name: 'level', index } : { name: 'levels' };
+  }
   if (h === 'levels' || h === 'collection' || h === 'studio') return { name: h };
   return { name: 'home' };
 }
