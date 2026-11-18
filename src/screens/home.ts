@@ -26,7 +26,7 @@ export function homeScreen(): Screen {
   const root = html(`
     <section class="screen home">
       <button class="quest-btn ${store.story === 'asked' ? 'is-new' : ''}" data-go="quests"
-        ${store.story === 'asked' || store.story === 'saved' ? '' : 'hidden'}>
+        ${store.questsOpen ? '' : 'hidden'}>
         <span class="quest-btn-hero">${hedgehogSVG()}</span><span>Задания</span>
         <b class="quest-badge" aria-hidden="true">!</b>
       </button>

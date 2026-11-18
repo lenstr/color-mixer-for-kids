@@ -45,9 +45,9 @@ function build(r: Route): Screen {
       return catchScreen();
     // the hedgehog's quests open once he has asked for help
     case 'quests':
-      return store.story === 'asked' || store.story === 'saved' ? questsScreen() : homeScreen();
+      return store.questsOpen ? questsScreen() : homeScreen();
     case 'glade':
-      return store.story === 'asked' || store.story === 'saved' ? gladeScreen() : homeScreen();
+      return store.questsOpen ? gladeScreen() : homeScreen();
   }
 }
 

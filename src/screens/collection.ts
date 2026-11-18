@@ -1,5 +1,5 @@
 import { type Pigment, PIGMENTS } from '../color';
-import { BASIC_COLORS, GOLD_COLOR, MIX_COLORS, PAINT_BY_ID } from '../data';
+import { MIX_COLORS, PAINT_BY_ID, basicColors } from '../data';
 import { swatchSVG } from '../blob';
 import { dropSVG } from '../jar';
 import { sfx } from '../audio';
@@ -26,7 +26,7 @@ export function collectionScreen(): Screen {
       <div class="collection-wrap">
         <h2 class="section-title">Основные краски</h2>
         <div class="basics">
-          ${(store.gold ? [...BASIC_COLORS, GOLD_COLOR] : BASIC_COLORS).map(
+          ${basicColors(store.gold).map(
             (c, i) => `<button class="basic" style="--c:${c.hex}; --i:${i}" data-say="name-${c.id}">
               ${swatchSVG(c.hex, i + 30)}<span>${c.name}</span></button>`,
           ).join('')}

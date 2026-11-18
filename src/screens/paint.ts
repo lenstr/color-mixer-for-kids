@@ -5,7 +5,6 @@
 
 import { type Drops, type Pigment, PIGMENTS, distance, emptyDrops, mixHex, totalDrops } from '../color';
 import {
-  ALL_COLORS,
   COLOR_BY_ID,
   MATCH,
   MAX_DROPS,
@@ -13,6 +12,7 @@ import {
   type NamedColor,
   shelfPaints,
   PAINT_BY_ID,
+  basicColors,
   colorLabel,
   nearest,
   suggest,
@@ -486,7 +486,7 @@ export function paintScreen(pic: Picture, story?: PaintStory): Screen {
   });
 
   function renderMyColors() {
-    const colors = ALL_COLORS.filter((c) => (c.basic && (c.id !== 'gold' || store.gold)) || store.isDiscovered(c.id));
+    const colors = [...basicColors(store.gold), ...MIX_COLORS.filter((c) => store.isDiscovered(c.id))];
     myColors.innerHTML = colors
       .map(
         (c) =>

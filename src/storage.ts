@@ -128,6 +128,10 @@ export const store = {
   get gold() {
     return data.story === 'saved';
   },
+  /** The hedgehog has asked for help: his quests are open. */
+  get questsOpen() {
+    return data.story === 'asked' || data.story === 'saved';
+  },
   /** Кляксын took the colors: the tasks and the collection look gray. */
   get colorless() {
     return data.story === 'stolen' || data.story === 'asked';

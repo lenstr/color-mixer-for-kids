@@ -18,10 +18,12 @@ export const PAINTS: PaintInfo[] = [
 /** The hedgehog's gift; its jar joins the studio and the coloring shelf once earned. */
 export const GOLD_PAINT: PaintInfo = { id: 'gold', name: 'Золотая', genitive: 'золотой', hex: GOLD };
 
-/** The jars on a free shelf: the gold one joins them once the hedgehog gave it. */
-export const shelfPaints = (gold: boolean) => (gold ? [...PAINTS, GOLD_PAINT] : PAINTS);
+export const ALL_PAINTS = [...PAINTS, GOLD_PAINT];
 
-export const PAINT_BY_ID = Object.fromEntries([...PAINTS, GOLD_PAINT].map((p) => [p.id, p])) as Record<Pigment, PaintInfo>;
+/** The jars on a free shelf: the gold one joins them once the hedgehog gave it. */
+export const shelfPaints = (gold: boolean) => (gold ? ALL_PAINTS : PAINTS);
+
+export const PAINT_BY_ID = Object.fromEntries(ALL_PAINTS.map((p) => [p.id, p])) as Record<Pigment, PaintInfo>;
 
 export interface NamedColor {
   id: string;
@@ -70,6 +72,9 @@ export const MIX_COLORS: NamedColor[] = [
 ];
 
 export const GOLD_COLOR = named('gold', 'Золотой', { gold: 1 }, true);
+
+/** The colors of the paint jars, the gold one once the hedgehog gave it. */
+export const basicColors = (gold: boolean) => (gold ? [...BASIC_COLORS, GOLD_COLOR] : BASIC_COLORS);
 
 export const ALL_COLORS = [...BASIC_COLORS, GOLD_COLOR, ...MIX_COLORS];
 
