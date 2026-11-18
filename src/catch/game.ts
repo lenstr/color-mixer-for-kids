@@ -9,25 +9,28 @@
 // the bucket from `frame`; the screen also shows the HUD and dialogs and
 // turns `on` events into sounds and voice.
 
+import { BODY_R, GROUND } from '../blob/shape';
 import { type Drops, type Pigment, PIGMENTS, emptyDrops, mixHex, mixHexes, shade } from '../color';
-import { COLOR_BY_ID, type NamedColor } from '../data';
+import { COLOR_BY_ID, type NamedColor, PAINT_BY_ID } from '../data';
+import { DROP_GLOSS, DROP_PATH } from '../jar';
 import { CARD, INK } from '../palette';
+
+/** A paint's drop, named like its jar. */
+const paint = <P extends Pigment>(id: P) => [id, PAINT_BY_ID[id].name] as const;
 
 // The drops that fall, all of them on every level. A mixed drop pours its
 // whole recipe into the bucket, so purple and white make lilac.
-const DROPS = (
-  [
-    ['red', 'Красная'],
-    ['yellow', 'Жёлтая'],
-    ['blue', 'Синяя'],
-    ['white', 'Белая'],
-    ['green', 'Зелёная'],
-    ['pink', 'Розовая'],
-    ['skyblue', 'Голубая'],
-    ['black', 'Чёрная'],
-    ['purple', 'Фиолетовая'],
-  ] as const
-).map(([id, name]) => ({ id, name, recipe: COLOR_BY_ID[id].recipe, hex: COLOR_BY_ID[id].hex }));
+const DROPS = [
+  paint('red'),
+  paint('yellow'),
+  paint('blue'),
+  paint('white'),
+  ['green', 'Зелёная'] as const,
+  ['pink', 'Розовая'] as const,
+  ['skyblue', 'Голубая'] as const,
+  paint('black'),
+  ['purple', 'Фиолетовая'] as const,
+].map(([id, name]) => ({ id, name, recipe: COLOR_BY_ID[id].recipe, hex: COLOR_BY_ID[id].hex }));
 type Paint = (typeof DROPS)[number];
 type DropId = Paint['id'];
 type Kind = Paint | 'mud';
@@ -50,11 +53,11 @@ const WON_PAUSE = 1.6; // seconds between a full bucket and the next color
 const MOUSE_EVERY = 40; // seconds between visits of the mouse with the mop
 
 const MUD_HEX = '#6B4A2B';
+/** styles.css --display, for the floating labels. */
 const DISPLAY = 'Unbounded, "Arial Black", system-ui, sans-serif';
-/** The drop of jar.ts dropSVG: 30 wide, its round part centered at (0, 7). */
-const DROP_PATH = new Path2D('M0 -22 C7 -11 15 -2 15 7 A15 15 0 0 1 -15 7 C-15 -2 -7 -11 0 -22 Z');
-/** Клякса's body is 208 of the blob's 300 units wide and 182 tall above the floor. */
-const BODY_HEIGHT = 182 / 208;
+const DROP = new Path2D(DROP_PATH);
+/** Клякса's height above the floor for its width. */
+const BODY_HEIGHT = (BODY_R + GROUND) / (2 * BODY_R);
 
 /** A color to catch and the drops it is made of, each caught MULT times. */
 export interface CatchLevel {
@@ -607,14 +610,15 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     ctx.translate(x, y - 7 * s);
     ctx.scale(s, s);
     ctx.fillStyle = hex;
-    ctx.fill(DROP_PATH);
+    ctx.fill(DROP);
     ctx.lineWidth = 3.6;
     ctx.lineJoin = 'round';
     ctx.strokeStyle = INK;
-    ctx.stroke(DROP_PATH);
-    ctx.fillStyle = 'rgba(255,255,255,.65)';
+    ctx.stroke(DROP);
+    const g = DROP_GLOSS;
+    ctx.fillStyle = `rgba(255,255,255,${g.opacity})`;
     ctx.beginPath();
-    ctx.ellipse(-6, 4, 3.2, 5.5, (20 * Math.PI) / 180, 0, Math.PI * 2);
+    ctx.ellipse(g.cx, g.cy, g.rx, g.ry, (g.deg * Math.PI) / 180, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   }

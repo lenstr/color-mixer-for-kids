@@ -65,9 +65,16 @@ export function jarSVG(p: PaintInfo) {
   </span>`;
 }
 
+/** The paint drop on the jars, the recipes and in the catch game: 30 wide,
+ * its round part centered at (0, 7). */
+export const DROP_PATH = 'M0 -22 C7 -11 15 -2 15 7 A15 15 0 0 1 -15 7 C-15 -2 -7 -11 0 -22 Z';
+/** The drop's white gloss: an ellipse turned by `deg` degrees. */
+export const DROP_GLOSS = { cx: -6, cy: 4, rx: 3.2, ry: 5.5, deg: 20, opacity: 0.65 };
+
 export function dropSVG(hex: string) {
+  const g = DROP_GLOSS;
   return `<svg viewBox="-20 -26 40 50" aria-hidden="true">
-    <path d="M0 -22 C7 -11 15 -2 15 7 A15 15 0 0 1 -15 7 C-15 -2 -7 -11 0 -22 Z" fill="${hex}" stroke="${INK}" stroke-width="3.5" stroke-linejoin="round"/>
-    <ellipse cx="-6" cy="4" rx="3.2" ry="5.5" fill="#fff" opacity=".65" transform="rotate(20 -6 4)"/>
+    <path d="${DROP_PATH}" fill="${hex}" stroke="${INK}" stroke-width="3.5" stroke-linejoin="round"/>
+    <ellipse cx="${g.cx}" cy="${g.cy}" rx="${g.rx}" ry="${g.ry}" fill="#fff" opacity="${g.opacity}" transform="rotate(${g.deg} ${g.cx} ${g.cy})"/>
   </svg>`;
 }

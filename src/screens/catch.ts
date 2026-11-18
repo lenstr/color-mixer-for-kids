@@ -5,6 +5,7 @@
 
 import { type CatchEvent, type Hud, LEVELS, LIVES, type Player, catchGame } from '../catch/game';
 import { PaintBlob, swatchSVG } from '../blob';
+import { BODY_R, BOX, GROUND } from '../blob/shape';
 import { dropSVG } from '../jar';
 import { reduced } from '../effects';
 import { icon } from '../icons';
@@ -219,17 +220,17 @@ export function catchScreen(): Screen {
     }
   }
 
-  // Клякса stands under the bucket: its body is `width` wide, and the 300×250
-  // blob box puts the floor 218 units from its top
+  // Клякса stands under the bucket: its body, 2 × BODY_R blob units, is
+  // `width` wide, and the floor lies GROUND − BOX.y units below its box's top
   let boxW = 0;
   function frame(p: Player) {
-    const w = (p.width * 300) / 208;
+    const w = (p.width * BOX.w) / (2 * BODY_R);
     if (Math.abs(w - boxW) > 0.5) {
       boxW = w;
       blobBox.style.width = `${w}px`;
     }
-    const u = w / 300;
-    blobBox.style.transform = `translate(${p.x - w / 2}px, ${p.groundY - 218 * u + p.hop}px)`;
+    const u = w / BOX.w;
+    blobBox.style.transform = `translate(${p.x - w / 2}px, ${p.groundY - (GROUND - BOX.y) * u + p.hop}px)`;
     // the pour tool stands past the right end of the shelf when there is room
     const room = stage.clientWidth - p.shelfRight - pourBtn.offsetWidth - 16;
     const right = `${room > 0 ? room : 0}px`;
