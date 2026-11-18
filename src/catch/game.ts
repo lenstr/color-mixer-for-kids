@@ -9,11 +9,11 @@
 // the bucket from `frame`; the screen also shows the HUD and dialogs and
 // turns `on` events into sounds and voice.
 
-import { type Drops, type Pigment, PIGMENTS, emptyDrops, mixHex, mixHexes, shade, totalDrops } from '../color';
-import { COLOR_BY_ID, MIX_COLORS, type NamedColor } from '../data';
+import { type Drops, type Pigment, PIGMENTS, emptyDrops, mixHex, mixHexes, shade } from '../color';
+import { COLOR_BY_ID, type NamedColor } from '../data';
 
 // The drops that fall, all of them on every level. A mixed drop pours its
-// whole recipe into the bucket: a green one is one yellow and one blue.
+// whole recipe into the bucket, so purple and white make lilac.
 const DROPS = (
   [
     ['red', 'Красная'],
@@ -28,7 +28,9 @@ const DROPS = (
   ] as const
 ).map(([id, name]) => ({ id, name, recipe: COLOR_BY_ID[id].recipe, hex: COLOR_BY_ID[id].hex }));
 type Paint = (typeof DROPS)[number];
+type DropId = Paint['id'];
 type Kind = Paint | 'mud';
+const DROP_BY_ID = Object.fromEntries(DROPS.map((d) => [d.id, d])) as Record<DropId, Paint>;
 
 // Balance, tuned in a throwaway prototype.
 const FALL = 0.32; // share of the sky crossed per second at level 1
@@ -39,7 +41,7 @@ const MUD = 0.12; // share of mud drops
 const HELP = 0.15; // extra chance that a drop is one the bucket can still take
 const BUCKET = 0.2; // bucket width, share of the playfield
 const BUCKET_SPEED = 1.8; // playfield widths per second
-export const MULT = 2; // the bucket holds the recipe × MULT
+const MULT = 2; // the bucket holds the recipe × MULT
 export const LIVES = 3;
 const CLOUDS = 4;
 const TREMBLE = 0.35; // seconds a cloud shakes before it lets a drop go
@@ -55,31 +57,52 @@ const DROP_PATH = new Path2D('M0 -22 C7 -11 15 -2 15 7 A15 15 0 0 1 -15 7 C-15 -
 /** Клякса's body is 208 of the blob's 300 units wide and 182 tall above the floor. */
 const BODY_HEIGHT = 182 / 208;
 
-/** Can the drops add up to exactly this recipe × MULT? */
-function reachable(c: NamedColor) {
-  const rest = PIGMENTS.map((p) => c.recipe[p] * MULT);
-  const fill = (from: number): boolean => {
-    if (rest.every((n) => n === 0)) return true;
-    for (let i = from; i < DROPS.length; i++) {
-      const r = PIGMENTS.map((p) => DROPS[i].recipe[p]);
-      if (r.some((n, j) => n > rest[j])) continue;
-      r.forEach((n, j) => (rest[j] -= n));
-      const ok = fill(i);
-      r.forEach((n, j) => (rest[j] += n));
-      if (ok) return true;
-    }
-    return false;
-  };
-  return fill(0);
+/** A color to catch and the drops it is made of, each caught MULT times. */
+export interface CatchLevel {
+  target: NamedColor;
+  drops: Paint[];
 }
+const lv = (id: string, ...drops: DropId[]): CatchLevel => ({
+  target: COLOR_BY_ID[id],
+  drops: drops.map((d) => DROP_BY_ID[d]),
+});
 
-/** The colors to catch, in the mixer's level order. */
-export const TARGETS = MIX_COLORS.filter(reachable);
+/** Simple mixes first, then colors made from the mixed drops too. Each
+ * recipe adds up to the target's own recipe, so the bucket ends exactly in
+ * the target color. */
+export const LEVELS: CatchLevel[] = [
+  lv('orange', 'red', 'yellow'),
+  lv('green', 'yellow', 'blue'),
+  lv('purple', 'red', 'blue'),
+  lv('pink', 'red', 'white'),
+  lv('skyblue', 'blue', 'white'),
+  lv('lilac', 'purple', 'white'),
+  lv('lime', 'green', 'yellow'),
+  lv('peach', 'pink', 'yellow'),
+  lv('turquoise', 'green', 'blue'),
+  lv('raspberry', 'purple', 'red'),
+  lv('gray', 'white', 'black'),
+  lv('brown', 'red', 'yellow', 'blue'),
+  lv('mint', 'skyblue', 'yellow', 'white'),
+  lv('darkgreen', 'green', 'black'),
+  lv('navy', 'blue', 'blue', 'black'),
+  lv('burgundy', 'red', 'red', 'black'),
+  lv('honey', 'red', 'yellow', 'yellow'),
+  lv('carrot', 'red', 'red', 'yellow'),
+];
+
+/** One kind of drop in the recipe: how many the bucket needs and has. */
+export interface RecipePart {
+  hex: string;
+  name: string;
+  need: number;
+  got: number;
+}
 
 export interface Hud {
   level: number;
   target: NamedColor;
-  bucket: Drops;
+  recipe: RecipePart[];
   score: number;
   lives: number;
 }
@@ -138,8 +161,11 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
   let score = 0;
   let lives = LIVES;
   let combo = 0;
-  let target = TARGETS[0];
-  let bucket: Drops = emptyDrops();
+  let stage = LEVELS[0];
+  let upcoming: CatchLevel | null = null;
+  let target = stage.target;
+  let bucket: Drops = emptyDrops(); // the paint, for its color when it spills
+  let caught: Partial<Record<DropId, number>> = {};
   let bx = 0.5; // bucket center, share of the playfield
   let aim: number | null = null; // where the finger is
   const keys = new Set<'left' | 'right'>();
@@ -161,6 +187,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
   // and its color swirls into the mix. Positions are relative to the
   // bucket's bottom center, so everything moves with the bucket.
   let shown: Drops = emptyDrops();
+  let shownN = 0; // drops that reached the paint
   let shownFill = 0;
   let tint = { from: '', to: '', t: 1 };
   let sinking: { dx: number; y: number; vy: number; r: number; kind: Paint; combo: number }[] = [];
@@ -170,6 +197,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
   let bumpT = 9; // seconds since a drop hit the paint; the bucket squashes and springs back
   function clearShown() {
     shown = emptyDrops();
+    shownN = 0;
     shownFill = 0;
     tint = { from: '', to: '', t: 1 };
     sinking = [];
@@ -183,13 +211,17 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
    * center moves by (dx, dy) and it turns by `rot` around that point. */
   let fall: { dx: number; dy: number; vx: number; vy: number; rot: number; vr: number; dir: 1 | -1; landed: number; spill: string | null } | null = null;
 
-  const goal = (p: Pigment) => target.recipe[p] * MULT;
-  const capacity = () => totalDrops(target.recipe) * MULT;
+  const need = (id: DropId) => stage.drops.filter((d) => d.id === id).length * MULT;
+  const caughtN = () => Object.values(caught).reduce((a, b) => a + b, 0);
+  const capacity = () => stage.drops.length * MULT;
   const kindHex = (k: Kind) => (k === 'mud' ? MUD_HEX : k.hex);
-  /** The drop still fits the recipe: no paint goes over its share. */
-  const fits = (k: Paint) => PIGMENTS.every((p) => bucket[p] + k.recipe[p] <= goal(p));
-  const targetFor = (lv: number) => TARGETS[lv - 1] ?? any(TARGETS);
-  const hud = () => opts.on({ type: 'hud', hud: { level, target, bucket: { ...bucket }, score, lives } });
+  /** The bucket still needs this drop. */
+  const fits = (k: Paint) => (caught[k.id] ?? 0) < need(k.id);
+  const levelFor = (n: number) => LEVELS[n - 1] ?? any(LEVELS);
+  const recipe = (): RecipePart[] =>
+    [...new Set(stage.drops)].map((d) => ({ hex: d.hex, name: d.name, need: need(d.id), got: caught[d.id] ?? 0 }));
+  const snapshot = (): Hud => ({ level, target, recipe: recipe(), score, lives });
+  const hud = () => opts.on({ type: 'hud', hud: snapshot() });
 
   // ---------- layout ----------
   let W = 0, H = 0, PW = 0, OX = 0, dpr = 1;
@@ -218,8 +250,11 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
 
   // ---------- rules ----------
   function setupLevel() {
-    target = targetFor(level);
+    stage = upcoming ?? levelFor(level);
+    upcoming = null;
+    target = stage.target;
     bucket = emptyDrops();
+    caught = {};
     clearShown();
     drops = [];
     clouds = Array.from({ length: CLOUDS }, (_, i) => ({ slot: i / CLOUDS, x: i / CLOUDS, release: 0, next: null }));
@@ -271,6 +306,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     const hex = mixHex(bucket);
     if (hex) burst(OX + bx * PW, bTop, hex, 16, 1.1);
     bucket = emptyDrops();
+    caught = {};
     clearShown();
     lives--;
     combo = 0;
@@ -292,10 +328,11 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
   }
 
   function pour() {
-    if (phase !== 'play' || paused || !totalDrops(bucket)) return;
+    if (phase !== 'play' || paused || !caughtN()) return;
     const { bTop } = L();
     burst(OX + bx * PW, bTop, mixHex(bucket)!, 10, 0.7);
     bucket = emptyDrops();
+    caught = {};
     clearShown();
     combo = 0;
     label('Вылили', CARD, bx, bTop - 34);
@@ -306,10 +343,11 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
   function onCatch(d: Drop) {
     if (d.kind === 'mud') return spoil('mud', 'Грязь!');
     const k = d.kind;
+    const fit = fits(k);
+    // the drop goes in either way, so a spoiled bucket splashes its color
     for (const p of PIGMENTS) bucket[p] += k.recipe[p];
-    // the drop is counted in, so a spoiled bucket splashes its color
-    if (totalDrops(bucket) > capacity() || PIGMENTS.some((p) => bucket[p] > goal(p)))
-      return spoil('extra', `Лишняя ${k.name.toLowerCase()}!`);
+    if (!fit) return spoil('extra', `Лишняя ${k.name.toLowerCase()}!`);
+    caught[k.id] = (caught[k.id] ?? 0) + 1;
     const { bTop, bh, bw } = L();
     combo++;
     // the drop keeps falling, now inside the bucket
@@ -319,7 +357,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     score += pts;
     label(combo > 1 ? `+${pts} ×${Math.min(combo, 5)}` : `+${pts}`, '#FFD21F', d.x, bTop - 22);
     // only fitting drops get in, so a full bucket is exactly the recipe
-    if (totalDrops(bucket) >= capacity()) win();
+    if (caughtN() >= capacity()) win();
     hud();
   }
 
@@ -334,7 +372,8 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     drops = [];
     hops = 2;
     hopWait = 0.32; // the last drop lands first
-    opts.on({ type: 'win', target, next: targetFor(level + 1) });
+    upcoming = levelFor(level + 1);
+    opts.on({ type: 'win', target, next: upcoming.target });
   }
 
   // ---------- paint in the bucket ----------
@@ -350,6 +389,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
       d.y = Infinity;
       const before = mixHex(shown);
       for (const p of PIGMENTS) shown[p] += d.kind.recipe[p];
+      shownN++;
       const after = mixHex(shown)!;
       tint = { from: before ?? after, to: after, t: before ? 0 : 1 };
       ripples.push({ dx: d.dx, t: 0 });
@@ -362,7 +402,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
       opts.on({ type: 'catch', pigment, combo: d.combo });
     }
     sinking = sinking.filter((d) => d.y !== Infinity);
-    shownFill += (totalDrops(shown) / capacity() - shownFill) * Math.min(1, dt * 12);
+    shownFill += (shownN / capacity() - shownFill) * Math.min(1, dt * 12);
     if (tint.t < 1) tint.t = Math.min(1, tint.t + dt / 0.7);
     ripples.forEach((r) => (r.t += dt));
     ripples = ripples.filter((r) => r.t < 0.6);
@@ -983,6 +1023,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
 
   return {
     start,
+    snapshot,
     resize,
     pour,
     get phase() {

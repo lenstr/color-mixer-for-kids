@@ -3,9 +3,7 @@
 // living Клякса under the bucket and the dialogs, and turns the game's events
 // into sounds, voice lines and the saved record.
 
-import { type CatchEvent, type Hud, LIVES, MULT, type Player, TARGETS, catchGame } from '../catch/game';
-import { PIGMENTS, emptyDrops } from '../color';
-import { PAINT_BY_ID } from '../data';
+import { type CatchEvent, type Hud, LEVELS, LIVES, type Player, catchGame } from '../catch/game';
 import { PaintBlob, swatchSVG } from '../blob';
 import { dropSVG } from '../jar';
 import { reduced } from '../effects';
@@ -70,12 +68,18 @@ export function catchScreen(): Screen {
       $(card, '.catch-name').textContent = h.target.name;
       $(card, '.catch-kicker').textContent = `Цвет ${h.level}`;
     }
-    $(card, '.catch-recipe').innerHTML = PIGMENTS.flatMap((p) =>
-      Array.from(
-        { length: h.target.recipe[p] * MULT },
-        (_, i) => `<span class="catch-pip ${i < h.bucket[p] ? 'is-on' : ''}">${dropSVG(PAINT_BY_ID[p].hex)}</span>`,
-      ),
-    ).join('');
+    // the recipe in drops, mixed ones too: purple + white for lilac
+    const recipeEl = $(card, '.catch-recipe');
+    recipeEl.innerHTML = h.recipe
+      .map(
+        (part) =>
+          `<span class="catch-part">${Array.from(
+            { length: part.need },
+            (_, i) => `<span class="catch-pip ${i < part.got ? 'is-on' : ''}">${dropSVG(part.hex)}</span>`,
+          ).join('')}</span>`,
+      )
+      .join('<b class="catch-plus">+</b>');
+    recipeEl.setAttribute('aria-label', h.recipe.map((part) => `${part.name} ${part.got} из ${part.need}`).join(', '));
     const scoreEl = $(card, '[data-score]');
     scoreEl.textContent = String(h.score);
     if (h.score !== shownScore) {
@@ -85,7 +89,7 @@ export function catchScreen(): Screen {
       scoreEl.classList.add('is-bump');
     }
     $(card, '.catch-lives').innerHTML = Array.from({ length: LIVES }, (_, i) => heartSVG(i < h.lives)).join('');
-    pourBtn.disabled = !PIGMENTS.some((p) => h.bucket[p] > 0);
+    pourBtn.disabled = !h.recipe.some((part) => part.got > 0);
   }
 
   // ---------- dialogs ----------
@@ -168,7 +172,7 @@ export function catchScreen(): Screen {
   }
 
   // ---------- game ----------
-  let reached = TARGETS[0];
+  let reached = LEVELS[0].target;
   let overTimer = 0;
 
   function on(e: CatchEvent) {
@@ -303,7 +307,7 @@ export function catchScreen(): Screen {
   return {
     el: root,
     mount() {
-      renderHud({ level: 1, target: TARGETS[0], bucket: emptyDrops(), score: 0, lives: LIVES });
+      renderHud(game.snapshot());
       showStart();
       say('catch-intro');
     },

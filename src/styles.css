@@ -1967,9 +1967,11 @@ label.parent-row { cursor: pointer; }
   font-size: 22px;
   line-height: 1.15;
 }
-.catch-recipe { display: flex; flex-wrap: wrap; gap: 1px; margin-top: 4px; min-height: 30px; }
+.catch-recipe { display: flex; flex-wrap: wrap; align-items: center; gap: 1px 4px; margin-top: 4px; min-height: 30px; }
+.catch-part { display: flex; gap: 1px; }
+.catch-plus { font-family: var(--display); font-weight: 800; font-size: 16px; color: var(--ink-2); }
 .catch-pip svg { display: block; width: 24px; height: 30px; }
-.catch-pip:not(.is-on) { opacity: 0.25; }
+.catch-pip:not(.is-on) { opacity: 0.32; }
 .catch-pip.is-on { animation: pop 0.35s var(--bounce); }
 .catch-score { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
 .catch-score b {
