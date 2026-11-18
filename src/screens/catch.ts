@@ -200,9 +200,14 @@ export function catchScreen(): Screen {
         store.catchBest = e.score;
         sfx.gameOver();
         say(record ? 'catch-record' : 'catch-over');
-        overTimer = window.setTimeout(() => showOver(e.score, record, reached), 900);
+        // the dialog waits until the bucket has fallen and settled
+        overTimer = window.setTimeout(() => showOver(e.score, record, reached), 1900);
         break;
       }
+      case 'thud':
+        sfx.thud();
+        blob.react('oops', 1400);
+        break;
       case 'mouse':
         sfx.squeak();
         if (!speaking()) say('catch-mouse');

@@ -91,6 +91,8 @@ export type CatchEvent =
   | { type: 'win'; target: NamedColor; next: NamedColor }
   | { type: 'over'; score: number; level: number }
   | { type: 'mouse' }
+  /** the bucket hit the shelf after the last life */
+  | { type: 'thud' }
   | { type: 'hud'; hud: Hud };
 
 /** Where Клякса stands, in canvas CSS pixels. */
@@ -148,6 +150,9 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
   let mouseT = 0;
   let mouse: { x: number; dir: 1 | -1 } | null = null; // x: share of the shelf
   let slosh = 0; // the paint sways after a catch
+  /** The bucket falling off Клякса's head after the last life: its bottom
+   * center moves by (dx, dy) and it turns by `rot` around that point. */
+  let fall: { dx: number; dy: number; vx: number; vy: number; rot: number; vr: number; dir: 1 | -1; landed: number; spill: string | null } | null = null;
 
   const goal = (p: Pigment) => target.recipe[p] * MULT;
   const capacity = () => totalDrops(target.recipe) * MULT;
@@ -201,6 +206,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     floats = [];
     mouseT = 0;
     mouse = null;
+    fall = null;
     bx = 0.5;
     setupLevel();
     phase = 'play';
@@ -241,6 +247,10 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     opts.on({ type: 'spoil', why, over });
     hud();
     if (over) {
+      // the bucket slides off towards the open side and tumbles down
+      const dir = bx < 0.5 ? 1 : -1;
+      const spill = hex ?? (why === 'mud' ? MUD_HEX : null);
+      fall = { dx: 0, dy: 0, vx: dir * 160, vy: -330, rot: 0, vr: dir * 5.2, dir, landed: 0, spill };
       phase = 'over';
       phaseT = 0;
       drops = [];
@@ -343,6 +353,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
         if (m.x < -0.12 || m.x > 1.12) mouse = null;
       }
     }
+    if (fall) updateFall(dt);
     if (phase !== 'play') return;
 
     // the bucket follows the finger or the keys at a limited speed
@@ -388,6 +399,45 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
       }
     }
     drops = drops.filter((d) => d.y !== Infinity);
+  }
+
+  /** Corners of the bucket around its bottom center, for the fall. */
+  function bucketCorners() {
+    const { bw, bh } = L();
+    return [[-bw / 2, -bh], [bw / 2, -bh], [-bw * 0.39, 0], [bw * 0.39, 0]];
+  }
+
+  function updateFall(dt: number) {
+    const f = fall!;
+    const { groundY, bBot } = L();
+    f.vy += 1500 * dt;
+    f.dx += f.vx * dt;
+    f.dy += f.vy * dt;
+    if (f.landed) {
+      // settle on its side
+      f.rot += (f.dir * Math.PI * 0.5 - f.rot) * Math.min(1, dt * 10);
+      f.vx *= Math.exp(-dt * 6);
+    } else f.rot += f.vr * dt;
+    // the lowest corner rests on the shelf
+    const low = Math.max(...bucketCorners().map(([ox, oy]) => ox * Math.sin(f.rot) + oy * Math.cos(f.rot)));
+    const floor = groundY - 2 - bBot - low;
+    if (f.dy > floor) {
+      f.dy = floor;
+      if (!f.landed) {
+        f.landed = 1;
+        f.vy = -f.vy * 0.28;
+        f.vx *= 0.5;
+        opts.on({ type: 'thud' });
+        if (!opts.calm) shakeT = 0.25;
+        // what was left in it spills over the shelf
+        const mouthX = OX + bx * PW + f.dx + f.dir * L().bw * 0.6;
+        if (f.spill) {
+          burst(mouthX, groundY - 4, f.spill, 14, 0.8);
+          for (let i = 0; i < 3; i++)
+            splats.push({ x: (mouthX - OX) / PW + f.dir * i * 0.03, r: rand(12, 20), hex: f.spill, seed: Math.random() });
+        }
+      } else if (f.vy > 0) f.vy = 0;
+    }
   }
 
   // ---------- drawing ----------
@@ -625,6 +675,12 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
       ctx.quadraticCurveTo(x - bwb, bBot, x - bwb, bBot - rr);
       ctx.closePath();
     };
+    ctx.save();
+    if (fall) {
+      ctx.translate(x + fall.dx, bBot + fall.dy);
+      ctx.rotate(fall.rot);
+      ctx.translate(-x, -bBot);
+    }
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
     // handle, lying back behind the bucket
@@ -700,6 +756,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     ctx.lineWidth = 4;
     ctx.stroke();
     ctx.lineCap = 'butt';
+    ctx.restore();
   }
 
   function draw() {

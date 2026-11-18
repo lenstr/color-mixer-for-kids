@@ -142,6 +142,11 @@ export const sfx = {
     tone(220, { dur: 0.35, type: 'sawtooth', vol: 0.12, slideTo: 90 });
     noise({ dur: 0.2, vol: 0.12, from: 900, to: 200 });
   },
+  /** something heavy lands on the shelf */
+  thud() {
+    tone(150, { dur: 0.25, vol: 0.5, slideTo: 60 });
+    noise({ dur: 0.18, vol: 0.25, from: 700, to: 150 });
+  },
   squeak() {
     tone(1700, { dur: 0.07, vol: 0.12, slideTo: 2300 });
     tone(1800, { at: 0.12, dur: 0.07, vol: 0.12, slideTo: 2400 });
