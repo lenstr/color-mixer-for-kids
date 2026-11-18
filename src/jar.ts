@@ -8,7 +8,7 @@ import { html } from './ui';
 /** A paint jar button; `onSqueeze` runs on press (not release) so fast taps feel instant. */
 export function jarButton(p: PaintInfo, i: number, onSqueeze: () => void) {
   const b = html<HTMLButtonElement>(`
-    <button class="jar" style="--paint:${p.hex}; --i:${i}" aria-label="${p.name} краска">
+    <button class="jar${p.id === 'gold' ? ' is-gold' : ''}" style="--paint:${p.hex}; --i:${i}" aria-label="${p.name} краска">
       ${jarSVG(p)}
       <span class="jar-label">${p.name}</span>
       <span class="jar-hint">${icon.sparkle}</span>

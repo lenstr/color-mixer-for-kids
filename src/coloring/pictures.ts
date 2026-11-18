@@ -299,3 +299,6 @@ const rainbow: Picture = (() => {
 export const PICTURES: Picture[] = [apple, mushroom, carrot, flower, fish, house, ladybug, rainbow];
 
 export const PICTURE_BY_ID = Object.fromEntries(PICTURES.map((p) => [p.id, p])) as Record<string, Picture>;
+
+/** Shape and decoration helpers, for pictures drawn elsewhere (the story's glade). */
+export { SKY, circle, dot, ellipse, gloss, grass, line, rays, rect };

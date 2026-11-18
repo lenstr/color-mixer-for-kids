@@ -11,7 +11,7 @@ import {
   MAX_DROPS,
   MIX_COLORS,
   type NamedColor,
-  PAINTS,
+  shelfPaints,
   PAINT_BY_ID,
   colorLabel,
   nearest,
@@ -27,9 +27,19 @@ import { type Point, clearEffects, flyDrop, jarMouth, reduced, splash } from '..
 import { icon } from '../icons';
 import { sfx } from '../audio';
 import { preload, say } from '../speech';
-import { type Artwork, store } from '../storage';
+import { type Artwork, type PaintMode, store } from '../storage';
 import { burst, warmup } from '../confetti';
-import { $, type Screen, html, restartClass, speechBubble, toast, topBar } from '../ui';
+import { $, type Route, type Screen, html, restartClass, speechBubble, toast, topBar } from '../ui';
+
+/** A picture painted as part of the story, with its own rules. */
+export interface PaintStory {
+  mode: PaintMode;
+  back: Route;
+  /** phrase id said when the screen opens */
+  intro: string;
+  /** runs once the picture is complete */
+  done(): void;
+}
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const UNDO_LIMIT = 40;
@@ -49,8 +59,8 @@ const SPLAT = (() => {
 /** Pigments of a recipe as a drop history, so undo works on a picked color too. */
 const historyOf = (d: Drops) => PIGMENTS.flatMap((p) => Array<Pigment>(d[p]).fill(p));
 
-export function paintScreen(pic: Picture): Screen {
-  const mode = store.paintMode;
+export function paintScreen(pic: Picture, story?: PaintStory): Screen {
+  const mode = story?.mode ?? store.paintMode;
   const modeInfo = MODES.find((m) => m.id === mode)!;
   const regionById = new Map(pic.regions.map((r) => [r.id, r]));
   const art: Artwork = store.artwork(pic.id);
@@ -68,7 +78,7 @@ export function paintScreen(pic: Picture): Screen {
   root.append(
     topBar(
       pic.name,
-      { name: 'coloring' },
+      story?.back ?? { name: 'coloring' },
       `<span class="mode-chip" title="${modeInfo.name}">${modeInfo.icon}<span>${modeInfo.name}</span></span>`,
     ),
   );
@@ -113,7 +123,7 @@ export function paintScreen(pic: Picture): Screen {
   const undoBtn = $<HTMLButtonElement>(grid, '[data-act="undo"]');
   const clearBtn = $<HTMLButtonElement>(grid, '[data-act="clear"]');
   const saveBtn = $<HTMLButtonElement>(grid, '[data-act="save"]');
-  hintBtn.hidden = mode === 'free';
+  hintBtn.hidden = mode === 'free' || !!story;
 
   const speech = speechBubble(bubble);
   const showBubble = speech.show;
@@ -327,6 +337,7 @@ export function paintScreen(pic: Picture): Screen {
     say(exact ? 'picture-perfect' : 'picture-done');
     saveBtn.classList.add('is-hinted');
     restartClass(svg, 'is-cheering');
+    if (story) setTimeout(story.done, 2600);
   }
 
   const dominant = (d: Drops) => PIGMENTS.reduce((a, b) => (d[b] > d[a] ? b : a));
@@ -394,7 +405,8 @@ export function paintScreen(pic: Picture): Screen {
   // ---------- brush ----------
 
   const jarBtns = new Map<Pigment, HTMLButtonElement>();
-  PAINTS.forEach((p, i) => {
+  const shelf = shelfPaints(store.gold);
+  shelf.forEach((p, i) => {
     const b = jarButton(p, i, () => addDrop(p.id, b));
     jarBtns.set(p.id, b);
     jarsEl.append(b);
@@ -467,7 +479,7 @@ export function paintScreen(pic: Picture): Screen {
   });
 
   function renderMyColors() {
-    const colors = ALL_COLORS.filter((c) => c.basic || store.isDiscovered(c.id));
+    const colors = ALL_COLORS.filter((c) => (c.basic && (c.id !== 'gold' || store.gold)) || store.isDiscovered(c.id));
     myColors.innerHTML = colors
       .map(
         (c) =>
@@ -564,7 +576,7 @@ export function paintScreen(pic: Picture): Screen {
   const onKey = (e: KeyboardEvent) => {
     if (e.target instanceof HTMLButtonElement && (e.key === 'Enter' || e.key === ' ')) return;
     const idx = Number(e.key) - 1;
-    if (idx >= 0 && idx < PAINTS.length) addDrop(PAINTS[idx].id, jarBtns.get(PAINTS[idx].id)!);
+    if (idx >= 0 && idx < shelf.length) addDrop(shelf[idx].id, jarBtns.get(shelf[idx].id)!);
     else if (e.key === 'z' && (e.metaKey || e.ctrlKey)) undoBtn.click();
     else if (e.key === 'Backspace') dropUndoBtn.click();
     else if (e.key === 'Delete') pourBtn.click();
@@ -578,10 +590,11 @@ export function paintScreen(pic: Picture): Screen {
       paintHints();
       warmup();
       window.addEventListener('keydown', onKey);
-      preload([`paint-${pic.id}`, 'need-paint', 'wrong-color', 'picture-done', 'picture-perfect']);
+      const intro = story?.intro ?? `paint-${pic.id}`;
+      preload([intro, 'need-paint', 'wrong-color', 'picture-done', 'picture-perfect']);
       setTimeout(() => {
         showBubble(`Раскрась ${pic.acc}!`);
-        say(`paint-${pic.id}`);
+        say(intro);
       }, 400);
     },
     destroy() {

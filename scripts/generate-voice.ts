@@ -9,9 +9,14 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { PHRASES } from '../src/phrases';
+import { PHRASES, VOICES } from '../src/phrases';
 
 const VOICE_ID = process.env.VOICE_ID ?? 'GN4wbsbejSnGSa1AzjH5'; // Ekaterina — soft, playful, native Russian
+// The story's characters speak in their own voices, a bit more theatrically.
+const CHARACTERS = {
+  villain: { voice: 'txnCCHHGKmYIwrn7HfHQ', stability: 0.3, style: 0.6 }, // Alexandr Vlasov — deep
+  hedgehog: { voice: 'RxivyypsDodFBfmDDOZF', stability: 0.4, style: 0.5 }, // Mila Svetlova — Russian fairy voice
+};
 const MODEL = 'eleven_multilingual_v2';
 const OUT = join(import.meta.dir, '..', 'public', 'voice');
 
@@ -30,9 +35,10 @@ mkdirSync(OUT, { recursive: true });
 async function render(id: string, text: string) {
   const file = join(OUT, `${id}.mp3`);
   if (!force && existsSync(file)) return 'skip';
+  const who = VOICES[id] ? CHARACTERS[VOICES[id]] : null;
   for (let attempt = 1; attempt <= 3; attempt++) {
     const res = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}?output_format=mp3_44100_96`,
+      `https://api.elevenlabs.io/v1/text-to-speech/${who?.voice ?? VOICE_ID}?output_format=mp3_44100_96`,
       {
         method: 'POST',
         headers: { 'xi-api-key': key, 'Content-Type': 'application/json' },
@@ -40,7 +46,7 @@ async function render(id: string, text: string) {
           text,
           model_id: MODEL,
           language_code: 'ru',
-          voice_settings: { stability: 0.4, similarity_boost: 0.8, style: 0.35, use_speaker_boost: true },
+          voice_settings: { stability: who?.stability ?? 0.4, similarity_boost: 0.8, style: who?.style ?? 0.35, use_speaker_boost: true },
         }),
       },
     );

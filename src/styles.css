@@ -2076,3 +2076,201 @@ label.parent-row { cursor: pointer; }
   .menu-icon { display: none; }
   .menu-btn { padding: 8px 12px; }
 }
+
+/* ==========================================================================
+   STORY: Кляксын, the hedgehog and his glade
+   ========================================================================== */
+
+.story-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgb(43 35 64 / 0.55);
+  animation: fade 0.3s both;
+}
+.story-backdrop.is-villain { background: rgb(18 14 28 / 0.72); }
+.story-backdrop.is-leaving { animation: fade 0.5s 0.25s reverse both; }
+.story-scene {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: min(520px, 100%);
+}
+.story-bubble {
+  position: relative;
+  max-width: 440px;
+  padding: 16px 22px;
+  border-radius: 26px;
+  background: var(--card);
+  border: var(--line) solid var(--ink);
+  box-shadow: 6px 7px 0 var(--ink);
+  font-size: clamp(18px, 4.6vw, 22px);
+  font-weight: 800;
+  line-height: 1.3;
+  text-align: center;
+  animation: pop 0.5s 0.5s var(--bounce) both;
+}
+.story-bubble::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -15px;
+  width: 22px;
+  height: 22px;
+  translate: -50% 0;
+  background: var(--card);
+  border: var(--line) solid var(--ink);
+  border-top: 0;
+  border-left: 0;
+  transform: rotate(45deg);
+}
+.is-villain .story-bubble { background: #fff3f3; border-color: #120e1c; }
+.is-villain .story-bubble::after { background: #fff3f3; }
+.story-actor {
+  width: min(300px, 70vw);
+  animation: actor-in 0.8s var(--bounce) both;
+}
+.story-actor .story-svg { display: block; width: 100%; height: auto; overflow: visible; }
+.is-villain .story-actor { animation: actor-in 0.8s var(--bounce) both, villain-laugh 0.32s 1s ease-in-out infinite alternate; }
+.is-hedgehog .story-actor .story-svg { animation: hedgehog-bob 1.2s ease-in-out infinite; }
+.is-leaving .story-actor { animation: actor-out 0.6s ease-in both; }
+.is-leaving .story-bubble, .is-leaving .story-next { animation: fade 0.25s reverse both; }
+@keyframes actor-in {
+  from { transform: translateX(110vw) rotate(12deg); }
+}
+@keyframes actor-out {
+  to { transform: translateX(-110vw) rotate(-18deg); }
+}
+@keyframes villain-laugh {
+  from { transform: translateY(0) scale(1, 1) rotate(-3deg); }
+  to { transform: translateY(-10px) scale(1.04, 0.96) rotate(3deg); }
+}
+@keyframes hedgehog-bob {
+  50% { transform: translateY(-6px) rotate(-2deg); }
+}
+.story-next { animation: fade-up 0.4s 1.2s both; }
+
+/* Кляксын drains the solved tasks */
+.level-grid.is-drained .level-tile {
+  filter: grayscale(1) brightness(1.05);
+  transition: filter 1.2s ease-in calc(var(--i) * 40ms);
+}
+.level-grid.is-drained .level-stars .star {
+  animation: star-gone 0.7s ease-in calc(var(--i) * 40ms + 0.3s) both;
+}
+@keyframes star-gone {
+  to { transform: translateY(-40px) scale(0) rotate(160deg); opacity: 0; }
+}
+
+/* the hedgehog's quests */
+.quest-btn {
+  position: absolute;
+  top: max(30px, env(safe-area-inset-top));
+  left: max(22px, env(safe-area-inset-left));
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 54px;
+  padding: 0 18px 0 6px;
+  border-radius: 99px;
+  background: var(--card);
+  border: var(--line) solid var(--ink);
+  box-shadow: 0 5px 0 var(--ink);
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 15px;
+  animation: fade-up 0.5s 0.9s both;
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+.quest-btn:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--ink); }
+.quest-btn-hero { width: 52px; }
+.quest-btn-hero svg { display: block; width: 100%; height: auto; }
+.quest-badge {
+  display: none;
+  position: absolute;
+  top: -10px;
+  right: -8px;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--red);
+  color: #fff;
+  border: 3px solid var(--ink);
+  font-family: var(--display);
+  font-size: 15px;
+}
+.quest-btn.is-new { background: var(--yellow); }
+.quest-btn.is-new .quest-badge { display: grid; animation: hint-jiggle 1s ease-in-out infinite; }
+
+.quests-wrap { width: min(640px, 100%); margin: 30px auto; padding: 0 6px 30px; }
+.quest-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 16px;
+  text-align: left;
+  cursor: pointer;
+  rotate: -1deg;
+}
+.quest-card:active { transform: translateY(4px); }
+.quest-hero { width: 120px; }
+.quest-hero svg { display: block; width: 100%; height: auto; }
+.quest-text { display: flex; flex-direction: column; gap: 4px; }
+.quest-text .card-kicker { text-align: left; }
+.quest-text b { font-family: var(--display); font-weight: 800; font-size: 24px; }
+.quest-text span { color: var(--ink-2); font-weight: 700; }
+.quest-thumb { width: 96px; filter: drop-shadow(4px 5px 0 var(--ink)); }
+.quest-thumb svg { display: block; width: 100%; height: auto; }
+.quest-state {
+  position: absolute;
+  top: -14px;
+  right: -12px;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--red);
+  color: #fff;
+  border: var(--line) solid var(--ink);
+  font-family: var(--display);
+  font-size: 22px;
+}
+.quest-state svg { width: 24px; height: 24px; }
+.quest-card.is-done .quest-state { background: var(--green); }
+
+/* the gold paint */
+.gift-card { padding-top: 0; }
+.gift-jar { width: 150px; margin-top: -80px; animation: wobble 3s ease-in-out infinite; filter: drop-shadow(0 0 18px rgb(255 210 31 / 0.9)); }
+.jar.is-gold .jar-art,
+.basic[style*='E6AC1E'] .swatch {
+  filter: drop-shadow(0 0 6px rgb(255 210 31 / 0.9));
+  animation: gold-glow 1.6s ease-in-out infinite alternate;
+}
+@keyframes gold-glow {
+  to { filter: drop-shadow(0 0 14px rgb(255 226 120 / 1)); }
+}
+
+@media (max-width: 560px) {
+  .quest-btn { top: max(24px, env(safe-area-inset-top)); left: 12px; height: 48px; font-size: 13px; padding-right: 14px; }
+  .quest-btn-hero { width: 44px; }
+  .quest-card { grid-template-columns: auto 1fr; gap: 10px; }
+  .quest-hero { width: 84px; }
+  .quest-thumb { grid-column: 1 / -1; justify-self: center; width: 70%; }
+  .quest-text b { font-size: 20px; }
+}
+@media (max-width: 560px) {
+  /* six jars once the gold one joins the shelf */
+  .jars:has(.jar.is-gold) .jar { width: min(14.4vw, 86px); }
+}
+@media (max-width: 560px) {
+  .quest-btn { top: max(12px, env(safe-area-inset-top)); }
+  /* room for the quests button above the logo */
+  .home:has(> .quest-btn:not([hidden])) { padding-top: 70px; }
+}

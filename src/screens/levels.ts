@@ -5,6 +5,7 @@ import { sfx } from '../audio';
 import { say } from '../speech';
 import { store } from '../storage';
 import { type Screen, go, html, topBar } from '../ui';
+import { storyCheck } from '../story';
 
 /** How many unsolved levels past the furthest solved one stay open, so a kid stuck on one can try another. */
 const OPEN_AHEAD = 3;
@@ -54,7 +55,16 @@ export function levelsScreen(): Screen {
   return {
     el: root,
     mount() {
-      say('levels');
+      const story = storyCheck({
+        // Кляксын drains the colors out of the solved tasks
+        async drain() {
+          sfx.drain();
+          grid.classList.add('is-drained');
+          await new Promise((r) => setTimeout(r, 1700));
+        },
+        refresh: () => go({ name: 'levels' }),
+      });
+      if (!story) say('levels');
       root.querySelector('.is-current')?.scrollIntoView({ block: 'center', behavior: 'smooth' });
     },
   };

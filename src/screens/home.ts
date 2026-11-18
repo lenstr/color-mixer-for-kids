@@ -9,6 +9,8 @@ import { canInstall, install, onInstallChange } from '../install';
 import { parentButton } from '../parents';
 import { PICTURES } from '../coloring/pictures';
 import { $, type Screen, go, html } from '../ui';
+import { storyCheck } from '../story';
+import { hedgehogSVG } from '../story/characters';
 
 const LOGO = 'Клякса';
 const LOGO_COLORS = ['#E8273F', '#FF8A1C', '#FFD21F', '#2BAE4C', '#1F62D8', '#8A3FC4'];
@@ -23,6 +25,11 @@ const LESSONS: [string, string, string][] = [
 export function homeScreen(): Screen {
   const root = html(`
     <section class="screen home">
+      <button class="quest-btn ${store.story === 'asked' ? 'is-new' : ''}" data-go="quests"
+        ${store.story === 'asked' || store.story === 'saved' ? '' : 'hidden'}>
+        <span class="quest-btn-hero">${hedgehogSVG()}</span><span>Задания</span>
+        <b class="quest-badge" aria-hidden="true">!</b>
+      </button>
       <div class="home-topright">
         <button class="install-btn" data-install hidden>${icon.install}<span>Установить</span></button>
         <button class="icon-btn" data-sound aria-label="Звук"></button>
@@ -121,12 +128,15 @@ export function homeScreen(): Screen {
   root.querySelectorAll<HTMLButtonElement>('[data-go]').forEach((b) =>
     b.addEventListener('click', () => {
       sfx.tap();
-      go({ name: b.dataset.go as 'levels' | 'studio' | 'coloring' | 'collection' | 'catch' });
+      go({ name: b.dataset.go as 'levels' | 'studio' | 'coloring' | 'collection' | 'catch' | 'quests' });
     }),
   );
 
   return {
     el: root,
+    mount() {
+      storyCheck({ refresh: paintProgress });
+    },
     destroy() {
       clearInterval(cycle);
       blob.destroy();

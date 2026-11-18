@@ -1,5 +1,5 @@
 import { type Drops, type Pigment, PIGMENTS, distance, emptyDrops, mixHex, totalDrops } from '../color';
-import { MATCH, MAX_DROPS, MIX_COLORS, NEAR, PAINTS, PAINT_BY_ID, colorLabel, nearest, suggest } from '../data';
+import { MATCH, MAX_DROPS, MIX_COLORS, NEAR, PAINTS, PAINT_BY_ID, colorLabel, nearest, shelfPaints, suggest } from '../data';
 import { PaintBlob } from '../blob';
 import { swatchSVG } from '../blob';
 import { dropSVG, jarButton } from '../jar';
@@ -87,7 +87,9 @@ export function mixerScreen(levelIndex: number | null): Screen {
 
   // ---------- jars ----------
   const jarBtns = new Map<Pigment, HTMLButtonElement>();
-  PAINTS.forEach((p, i) => {
+  // tasks never need gold, so it stays in the studio
+  const shelf = isLevel ? PAINTS : shelfPaints(store.gold);
+  shelf.forEach((p, i) => {
     const b = jarButton(p, i, () => addDrop(p.id, b));
     jarBtns.set(p.id, b);
     jarsEl.append(b);
@@ -389,7 +391,7 @@ export function mixerScreen(levelIndex: number | null): Screen {
   const onKey = (e: KeyboardEvent) => {
     if (e.target instanceof HTMLButtonElement && (e.key === 'Enter' || e.key === ' ')) return;
     const idx = Number(e.key) - 1;
-    if (idx >= 0 && idx < PAINTS.length) addDrop(PAINTS[idx].id, jarBtns.get(PAINTS[idx].id)!);
+    if (idx >= 0 && idx < shelf.length) addDrop(shelf[idx].id, jarBtns.get(shelf[idx].id)!);
     else if (e.key === 'Backspace' || (e.key === 'z' && (e.metaKey || e.ctrlKey))) undo();
     else if (e.key === 'Delete') pour();
   };

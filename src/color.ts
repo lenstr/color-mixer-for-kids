@@ -5,16 +5,17 @@
 // We place hand-picked paint colors on the corners of an RYB cube and
 // interpolate between them in OKLab, so in-between mixes stay vivid and
 // perceptually even. White tints and black shades the result afterwards.
+// Gold is the hedgehog's gift: a magic paint that glazes any mix with gold.
 
-export type Pigment = 'red' | 'yellow' | 'blue' | 'white' | 'black';
-export const PIGMENTS: Pigment[] = ['red', 'yellow', 'blue', 'white', 'black'];
+export type Pigment = 'red' | 'yellow' | 'blue' | 'white' | 'black' | 'gold';
+export const PIGMENTS: Pigment[] = ['red', 'yellow', 'blue', 'white', 'black', 'gold'];
 
 export type Drops = Record<Pigment, number>;
 
-export const emptyDrops = (): Drops => ({ red: 0, yellow: 0, blue: 0, white: 0, black: 0 });
+export const emptyDrops = (): Drops => ({ red: 0, yellow: 0, blue: 0, white: 0, black: 0, gold: 0 });
 
 export const totalDrops = (d: Drops): number =>
-  d.red + d.yellow + d.blue + d.white + d.black;
+  d.red + d.yellow + d.blue + d.white + d.black + d.gold;
 
 type Lab = [number, number, number];
 export type RGB = [number, number, number];
@@ -33,6 +34,7 @@ const CORNERS = {
 
 const WHITE = '#FFFDF7';
 const BLACK = '#1D1A22';
+export const GOLD = '#E6AC1E';
 
 // ---------- sRGB <-> OKLab ----------
 
@@ -94,6 +96,7 @@ const C = Object.fromEntries(Object.entries(CORNERS).map(([k, v]) => [k, hexToLa
 >;
 const WHITE_LAB = hexToLab(WHITE);
 const BLACK_LAB = hexToLab(BLACK);
+const GOLD_LAB = hexToLab(GOLD);
 
 function ryb(r: number, y: number, b: number): Lab {
   // Trilinear interpolation across the eight cube corners.
@@ -124,6 +127,14 @@ function tint([L, a, b]: Lab, t: number): Lab {
 export function mixLab(d: Drops): Lab | null {
   const total = totalDrops(d);
   if (total === 0) return null;
+  if (!d.gold) return paintLab(d, total);
+  // gold glazes the rest of the mix
+  if (d.gold === total) return GOLD_LAB;
+  return lerpLab(paintLab(d, total - d.gold), GOLD_LAB, (d.gold / total) ** 0.8);
+}
+
+/** The mix of the ordinary paints; `total` leaves the gold out. */
+function paintLab(d: Drops, total: number): Lab {
   const chroma = d.red + d.yellow + d.blue;
   let lab: Lab;
   if (chroma > 0) {

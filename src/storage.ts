@@ -3,6 +3,13 @@ const KEY = 'klyaksa-v1';
 /** free: paint anything; hint: dots show the real colors; task: only the real color sticks */
 export type PaintMode = 'free' | 'hint' | 'task';
 
+/**
+ * The story: after all tasks are solved the villain Кляксын steals the
+ * colors (`stolen`), after they are solved again the hedgehog asks for help
+ * (`asked`), and once his glade is painted he gives the gold paint (`saved`).
+ */
+export type StoryStage = 'none' | 'stolen' | 'asked' | 'saved';
+
 /** A coloring page in progress: region id -> paint hex, and the regions painted their real color. */
 export interface Artwork {
   fills: Record<string, string>;
@@ -17,6 +24,7 @@ interface Saved {
   paintMode: PaintMode;
   art: Record<string, Artwork>; // picture id -> artwork
   catchBest: number; // best score in «Поймай цвет»
+  story: StoryStage;
 }
 
 function load(): Saved {
@@ -30,7 +38,7 @@ function load(): Saved {
 }
 
 function fresh(): Saved {
-  return { stars: {}, discovered: [], sound: true, unlockAll: false, paintMode: 'hint', art: {}, catchBest: 0 };
+  return { stars: {}, discovered: [], sound: true, unlockAll: false, paintMode: 'hint', art: {}, catchBest: 0, story: 'none' };
 }
 
 const data = load();
@@ -106,12 +114,31 @@ export const store = {
     data.catchBest = Math.max(n, data.catchBest);
     save();
   },
-  /** Forgets stars, found colors, pictures and the record; settings stay. */
+  get story() {
+    return data.story;
+  },
+  set story(s: StoryStage) {
+    data.story = s;
+    save();
+  },
+  /** The hedgehog's gift: the gold paint. */
+  get gold() {
+    return data.story === 'saved';
+  },
+  /** Кляксын's theft: stars and found colors are gone. */
+  steal() {
+    data.stars = {};
+    data.discovered = [];
+    data.story = 'stolen';
+    save();
+  },
+  /** Forgets stars, found colors, pictures, the record and the story; settings stay. */
   reset() {
     data.stars = {};
     data.discovered = [];
     data.art = {};
     data.catchBest = 0;
+    data.story = 'none';
     save();
   },
 };

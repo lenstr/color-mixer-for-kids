@@ -69,7 +69,7 @@ function openParentPanel(btn: HTMLElement, onChange: () => void) {
         <span><b>Открыть все задания</b><small>Обычно открыты три задания после последнего пройденного</small></span>
       </label>
       <div class="parent-row parent-reset">
-        <span><b>Сбросить прогресс</b><small>Звёзды, найденные цвета, раскраски и рекорд сотрутся</small></span>
+        <span><b>Сбросить прогресс</b><small>Звёзды, найденные цвета, раскраски, рекорд и история с ёжиком сотрутся</small></span>
         <button class="btn btn-ghost" data-reset>Сбросить</button>
         <button class="btn btn-danger" data-confirm hidden>Да, стереть</button>
       </div>

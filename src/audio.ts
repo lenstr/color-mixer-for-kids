@@ -93,6 +93,7 @@ const NOTE: Record<Pigment, number> = {
   blue: 783.99,
   white: 1046.5,
   black: 392.0,
+  gold: 1318.5,
 };
 
 export const sfx = {
@@ -141,6 +142,18 @@ export const sfx = {
   spoil() {
     tone(220, { dur: 0.35, type: 'sawtooth', vol: 0.12, slideTo: 90 });
     noise({ dur: 0.2, vol: 0.12, from: 900, to: 200 });
+  },
+  /** Кляксын shows up: a low, sneaky fall */
+  villain() {
+    [196, 185, 174.6, 130.8].forEach((f, i) =>
+      tone(f, { at: i * 0.22, dur: 0.4, type: 'sawtooth', vol: 0.1, slideTo: f * 0.94 }),
+    );
+    noise({ at: 0.7, dur: 0.6, vol: 0.12, from: 300, to: 80 });
+  },
+  /** the colors drain away */
+  drain() {
+    tone(880, { dur: 1.2, type: 'triangle', vol: 0.16, slideTo: 110 });
+    noise({ dur: 1.1, vol: 0.14, from: 2400, to: 200 });
   },
   /** something heavy lands on the shelf */
   thud() {

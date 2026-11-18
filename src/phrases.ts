@@ -2,7 +2,7 @@
 // mp3 files in public/voice/<id>.mp3; at runtime the game plays the file and
 // falls back to the browser's speech synthesis if it is missing.
 
-import { ALL_COLORS, MIX_COLORS, PAINTS } from './data';
+import { ALL_COLORS, GOLD_PAINT, MIX_COLORS, PAINTS } from './data';
 import { PICTURES } from './coloring/pictures';
 
 const lc = (s: string) => s.toLowerCase();
@@ -15,6 +15,7 @@ function paintList(ids: string[]) {
     blue: 'синюю',
     white: 'белую',
     black: 'чёрную',
+    gold: 'золотую',
   };
   const words = ids.map((i) => acc[i]);
   return words.length === 1 ? words[0] : `${words.slice(0, -1).join(', ')} и ${words.at(-1)}`;
@@ -46,13 +47,30 @@ export const PHRASES: Record<string, string> = {
   'catch-mouse': 'А вот и мышка-уборщица!',
   'catch-over': 'Ведро упало! Давай ещё раз!',
   'catch-record': 'Ура! Новый рекорд!',
+  // the story; `VOICES` gives the villain and the hedgehog their own voices
+  'villain-laugh': 'Ха-ха-ха! Я злой Кляксын! Я оставлю мир без красок! Ха-ха-ха-ха!',
+  'villain-after': 'Ой! Злой Кляксын забрал все звёзды и цвета! Давай вернём их — пройди задания ещё раз!',
+  'hedgehog-help': 'Помоги мне, пожалуйста! Злой Кляксын забрал с моей полянки все цвета. Если поможешь, я тебя награжу!',
+  quests: 'Ёжик ждёт твоей помощи!',
+  'quests-done': 'Ты помог ёжику! Он очень рад.',
+  'glade-intro': 'Раскрась мою полянку! Вспомни, какого цвета трава, небо и цветы.',
+  'hedgehog-thanks': 'Ура! Моя полянка снова цветная! Спасибо тебе! Вот твоя награда — волшебная золотая краска!',
+  'gold-gift': 'Золотая краска теперь в мастерской и в раскраске!',
+};
+
+/** Phrases spoken by someone other than Клякса: phrase id -> character. */
+export const VOICES: Record<string, 'villain' | 'hedgehog'> = {
+  'villain-laugh': 'villain',
+  'hedgehog-help': 'hedgehog',
+  'glade-intro': 'hedgehog',
+  'hedgehog-thanks': 'hedgehog',
 };
 
 for (const p of PICTURES) {
   PHRASES[`paint-${p.id}`] = `Раскрась ${p.acc}!`;
 }
 
-for (const p of PAINTS) {
+for (const p of [...PAINTS, GOLD_PAINT]) {
   PHRASES[`add-${p.id}`] = `Добавь ${p.genitive} краски!`;
 }
 

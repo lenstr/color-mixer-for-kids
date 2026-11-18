@@ -14,6 +14,8 @@ import { mixerScreen } from './screens/mixer';
 import { coloringScreen } from './screens/coloring';
 import { paintScreen } from './screens/paint';
 import { catchScreen } from './screens/catch';
+import { gladeScreen, questsScreen } from './screens/quests';
+import { store } from './storage';
 import { PICTURE_BY_ID } from './coloring/pictures';
 import { MIX_COLORS } from './data';
 import { hush } from './speech';
@@ -41,6 +43,11 @@ function build(r: Route): Screen {
       return paintScreen(PICTURE_BY_ID[r.id]);
     case 'catch':
       return catchScreen();
+    // the hedgehog's quests open once he has asked for help
+    case 'quests':
+      return store.story === 'asked' || store.story === 'saved' ? questsScreen() : homeScreen();
+    case 'glade':
+      return store.story === 'asked' || store.story === 'saved' ? gladeScreen() : homeScreen();
   }
 }
 
@@ -59,13 +66,14 @@ function fromHash(): Route {
   }
   const p = h.match(/^paint-(\w+)$/);
   if (p) return PICTURE_BY_ID[p[1]] ? { name: 'paint', id: p[1] } : { name: 'coloring' };
-  if (h === 'levels' || h === 'collection' || h === 'studio' || h === 'coloring' || h === 'catch') return { name: h };
+  if (h === 'levels' || h === 'collection' || h === 'studio' || h === 'coloring' || h === 'catch' || h === 'quests' || h === 'glade')
+    return { name: h };
   return { name: 'home' };
 }
 
 function show(r: Route) {
   hush();
-  document.querySelectorAll('.toast').forEach((t) => t.remove());
+  document.querySelectorAll('.toast, body > .modal-backdrop').forEach((t) => t.remove());
   const prev = current;
   const next = build(r);
   current = next;
