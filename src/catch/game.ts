@@ -9,7 +9,7 @@
 // the bucket from `frame`; the screen also shows the HUD and dialogs and
 // turns `on` events into sounds and voice.
 
-import { type Drops, type Pigment, PIGMENTS, emptyDrops, mixHex, shade, totalDrops } from '../color';
+import { type Drops, type Pigment, PIGMENTS, emptyDrops, mixHex, mixHexes, shade, totalDrops } from '../color';
 import { COLOR_BY_ID, MIX_COLORS, type NamedColor } from '../data';
 
 // The drops that fall, all of them on every level. A mixed drop pours its
@@ -85,7 +85,8 @@ export interface Hud {
 
 export type CatchEvent =
   | { type: 'level'; target: NamedColor; first: boolean }
-  | { type: 'catch'; hex: string; combo: number }
+  /** a caught drop splashed into the paint */
+  | { type: 'catch'; pigment: Pigment; combo: number }
   | { type: 'spoil'; why: 'mud' | 'extra'; over: boolean }
   | { type: 'pour' }
   | { type: 'win'; target: NamedColor; next: NamedColor }
@@ -154,6 +155,27 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
   let mouseT = 0;
   let mouse: { x: number; dir: 1 | -1 } | null = null; // x: share of the shelf
   let slosh = 0; // the paint sways after a catch
+  // What the bucket shows. A caught drop counts for the rules at the rim but
+  // reaches the paint a moment later: it sinks through the glass, splashes,
+  // and its color swirls into the mix. Positions are relative to the
+  // bucket's bottom center, so everything moves with the bucket.
+  let shown: Drops = emptyDrops();
+  let shownFill = 0;
+  let tint = { from: '', to: '', t: 1 };
+  let sinking: { dx: number; y: number; vy: number; r: number; kind: Paint; combo: number }[] = [];
+  let ripples: { dx: number; t: number }[] = [];
+  let swirls: { dx: number; t: number; hex: string; spin: number }[] = [];
+  let splashes: { dx: number; y: number; vx: number; vy: number; r: number; hex: string }[] = [];
+  let bumpT = 9; // seconds since a drop hit the paint; the bucket squashes and springs back
+  function clearShown() {
+    shown = emptyDrops();
+    shownFill = 0;
+    tint = { from: '', to: '', t: 1 };
+    sinking = [];
+    ripples = [];
+    swirls = [];
+  }
+
   // a full bucket makes Клякса hop for joy, bucket and all
   let hop = 0, hopV = 0, hops = 0, hopWait = 0;
   /** The bucket falling off Клякса's head after the last life: its bottom
@@ -180,6 +202,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     OX = (W - PW) / 2;
   }
   const PLANK = 30;
+  const groundSpan = () => L().groundY - L().cloudY;
   const L = () => {
     const cloudY = Math.max(40, Math.min(56, PW * 0.1));
     const groundY = H - PLANK - 10;
@@ -196,6 +219,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
   function setupLevel() {
     target = targetFor(level);
     bucket = emptyDrops();
+    clearShown();
     drops = [];
     clouds = Array.from({ length: CLOUDS }, (_, i) => ({ slot: i / CLOUDS, x: i / CLOUDS, release: 0, next: null }));
     spawnT = -0.6;
@@ -246,6 +270,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     const hex = mixHex(bucket);
     if (hex) burst(OX + bx * PW, bTop, hex, 16, 1.1);
     bucket = emptyDrops();
+    clearShown();
     lives--;
     combo = 0;
     if (!opts.calm) shakeT = 0.3;
@@ -270,6 +295,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     const { bTop } = L();
     burst(OX + bx * PW, bTop, mixHex(bucket)!, 10, 0.7);
     bucket = emptyDrops();
+    clearShown();
     combo = 0;
     label('Вылили', CARD, bx, bTop - 34);
     opts.on({ type: 'pour' });
@@ -283,14 +309,14 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     // the drop is counted in, so a spoiled bucket splashes its color
     if (totalDrops(bucket) > capacity() || PIGMENTS.some((p) => bucket[p] > goal(p)))
       return spoil('extra', `Лишняя ${k.name.toLowerCase()}!`);
-    const { bTop } = L();
-    burst(OX + d.x * PW, bTop, k.hex, 5, 0.5);
-    slosh = 1;
+    const { bTop, bh, bw } = L();
     combo++;
+    // the drop keeps falling, now inside the bucket
+    const dx = Math.max(-bw * 0.3, Math.min(bw * 0.3, (d.x - bx) * PW));
+    sinking.push({ dx, y: -bh + bw * 0.05, vy: FALL * (groundSpan()) * 1.2, r: d.r, kind: k, combo });
     const pts = 10 * Math.min(combo, 5);
     score += pts;
     label(combo > 1 ? `+${pts} ×${Math.min(combo, 5)}` : `+${pts}`, '#FFD21F', d.x, bTop - 22);
-    opts.on({ type: 'catch', hex: k.hex, combo });
     // only fitting drops get in, so a full bucket is exactly the recipe
     if (totalDrops(bucket) >= capacity()) win();
     hud();
@@ -306,8 +332,48 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     phaseT = 0;
     drops = [];
     hops = 2;
-    hopWait = 0.12;
+    hopWait = 0.32; // the last drop lands first
     opts.on({ type: 'win', target, next: targetFor(level + 1) });
+  }
+
+  // ---------- paint in the bucket ----------
+  function updatePaint(dt: number) {
+    const { bw, bh } = L();
+    const inner = bh - bw * 0.13;
+    const surface = -inner * shownFill; // relative to the bucket's bottom
+    for (const d of sinking) {
+      d.vy += 1800 * dt;
+      d.y += d.vy * dt;
+      if (d.y + d.r * 0.4 < surface) continue;
+      // splash: the color goes in, rings and droplets come out
+      d.y = Infinity;
+      const before = mixHex(shown);
+      for (const p of PIGMENTS) shown[p] += d.kind.recipe[p];
+      const after = mixHex(shown)!;
+      tint = { from: before ?? after, to: after, t: before ? 0 : 1 };
+      ripples.push({ dx: d.dx, t: 0 });
+      swirls.push({ dx: d.dx, t: 0, hex: d.kind.hex, spin: Math.random() < 0.5 ? 1 : -1 });
+      for (let i = 0; i < 6; i++)
+        splashes.push({ dx: d.dx, y: surface, vx: rand(-90, 90), vy: rand(-330, -190), r: rand(2.5, 4.5), hex: i % 2 ? d.kind.hex : after });
+      bumpT = 0;
+      slosh = 1;
+      const pigment = PIGMENTS.find((p) => d.kind.recipe[p] > 0)!;
+      opts.on({ type: 'catch', pigment, combo: d.combo });
+    }
+    sinking = sinking.filter((d) => d.y !== Infinity);
+    shownFill += (totalDrops(shown) / capacity() - shownFill) * Math.min(1, dt * 12);
+    if (tint.t < 1) tint.t = Math.min(1, tint.t + dt / 0.7);
+    ripples.forEach((r) => (r.t += dt));
+    ripples = ripples.filter((r) => r.t < 0.6);
+    swirls.forEach((w) => (w.t += dt));
+    swirls = swirls.filter((w) => w.t < 0.9);
+    for (const q of splashes) {
+      q.vy += 1400 * dt;
+      q.dx += q.vx * dt;
+      q.y += q.vy * dt;
+    }
+    splashes = splashes.filter((q) => q.vy < 0 || q.y < surface);
+    bumpT += dt;
   }
 
   // ---------- hop for joy ----------
@@ -339,6 +405,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     phaseT += dt;
     slosh = Math.max(0, slosh - dt * 1.5);
     updateHop(dt);
+    updatePaint(dt);
     const { cloudY, groundY, bw, bTop } = L();
 
     for (const q of parts) {
@@ -715,6 +782,13 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
       ctx.rotate(fall.rot);
       ctx.translate(-x, -bBot);
     }
+    // a splash squashes the bucket for a moment, and it springs back
+    const squash = bumpT < 0.6 ? Math.exp(-bumpT * 8) * Math.cos(bumpT * 30) : 0;
+    if (squash) {
+      ctx.translate(x, bBot);
+      ctx.scale(1 + 0.06 * squash, 1 - 0.09 * squash);
+      ctx.translate(-x, -bBot);
+    }
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
     // handle, lying back behind the bucket
@@ -727,31 +801,81 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     body();
     ctx.fillStyle = '#E4ECF5';
     ctx.fill();
-    const hex = mixHex(bucket);
+    const inner = bBot - (bTop + rimH);
+    const surface = bBot - inner * shownFill;
+    const hex = mixHex(shown);
+    ctx.save();
+    body();
+    ctx.clip();
     if (hex) {
-      const fill = Math.min(1, totalDrops(bucket) / capacity());
-      const inner = bBot - (bTop + rimH);
-      const surface = bBot - inner * fill;
-      const amp = 2 + slosh * 4;
-      ctx.save();
-      body();
-      ctx.clip();
-      ctx.fillStyle = hex;
-      ctx.beginPath();
-      ctx.moveTo(x - tw, bBot + 2);
-      for (let i = 0; i <= 24; i++) ctx.lineTo(x - tw + (i / 24) * bw, surface + Math.sin(i * 0.8 + time * 5) * amp);
-      ctx.lineTo(x + tw, bBot + 2);
+      const color = tint.t < 1 ? mixHexes(tint.from, tint.to, 1 - (1 - tint.t) ** 3) : hex;
+      const amp = 2 + slosh * 5;
+      const wave = (i: number) => surface + Math.sin(i * 0.8 + time * 5) * amp * (1 - Math.abs(i - 12) / 30);
+      const paint = () => {
+        ctx.beginPath();
+        ctx.moveTo(x - tw, bBot + 2);
+        for (let i = 0; i <= 24; i++) ctx.lineTo(x - tw + (i / 24) * bw, wave(i));
+        ctx.lineTo(x + tw, bBot + 2);
+        ctx.closePath();
+      };
+      paint();
+      ctx.fillStyle = color;
       ctx.fill();
-      ctx.strokeStyle = shade(hex, 0.35);
+      // each new color swirls into the mix and fades into it
+      ctx.save();
+      paint();
+      ctx.clip();
+      for (const w of swirls) {
+        const p = w.t / 0.9;
+        const cx = x + w.dx * (1 - p * 0.7);
+        const cy = surface + (bBot - surface) * (0.25 + p * 0.25);
+        ctx.globalAlpha = (1 - p) ** 1.3;
+        ctx.strokeStyle = w.hex;
+        ctx.lineCap = 'round';
+        for (let arm = 0; arm < 2; arm++) {
+          ctx.lineWidth = Math.max(1, bw * 0.09 * (1 - p));
+          ctx.beginPath();
+          for (let i = 0; i <= 14; i++) {
+            const a = w.spin * (p * 5 + i * 0.35) + arm * Math.PI;
+            const rad = bw * (0.04 + 0.022 * i) * (0.6 + p);
+            const px = cx + Math.cos(a) * rad, py = cy + Math.sin(a) * rad * 0.4;
+            i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+          }
+          ctx.stroke();
+        }
+      }
+      ctx.globalAlpha = 1;
+      ctx.restore();
+      ctx.strokeStyle = shade(color, 0.35);
       ctx.lineWidth = 3.5;
       ctx.beginPath();
       for (let i = 0; i <= 24; i++) {
-        const px = x - tw + (i / 24) * bw, py = surface + Math.sin(i * 0.8 + time * 5) * amp;
-        i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+        const px = x - tw + (i / 24) * bw;
+        i ? ctx.lineTo(px, wave(i)) : ctx.moveTo(px, wave(i));
       }
       ctx.stroke();
+      // rings spread over the surface where a drop went in
+      for (const r of ripples) {
+        const p = r.t / 0.6;
+        ctx.globalAlpha = 1 - p;
+        ctx.strokeStyle = shade(color, 0.5);
+        ctx.lineWidth = 2.5 * (1 - p) + 0.5;
+        ctx.beginPath();
+        ctx.ellipse(x + r.dx, surface + 1, bw * (0.08 + 0.32 * p), bw * (0.025 + 0.07 * p), 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    }
+    // drops on their way down through the glass
+    for (const d of sinking) {
+      const k = Math.min(1.25, 1 + d.vy / 3000);
+      ctx.save();
+      ctx.translate(x + d.dx, bBot + d.y);
+      ctx.scale(1 / Math.sqrt(k), k); // stretched by the speed
+      paintDrop(0, 0, d.r * 0.9, d.kind.hex);
       ctx.restore();
     }
+    ctx.restore();
     // gloss, like on the jars
     ctx.save();
     body();
@@ -769,7 +893,6 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     ctx.strokeStyle = 'rgba(43,35,64,.3)';
     ctx.lineWidth = 2;
     const cap = capacity();
-    const inner = bBot - (bTop + rimH);
     ctx.beginPath();
     for (let i = 1; i < cap; i++) {
       const y = bBot - (inner * i) / cap;
@@ -790,6 +913,13 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     ctx.lineWidth = 4;
     ctx.stroke();
     ctx.lineCap = 'butt';
+    // droplets jumping out of the paint
+    for (const q of splashes) {
+      ctx.fillStyle = q.hex;
+      ctx.beginPath();
+      ctx.arc(x + q.dx, bBot + q.y, q.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.restore();
   }
 

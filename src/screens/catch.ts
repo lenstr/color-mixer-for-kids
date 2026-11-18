@@ -17,6 +17,11 @@ import { $, type Screen, go, html, topBar } from '../ui';
 
 const KEYS: Record<string, 'left' | 'right'> = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right' };
 
+/** A short buzz on phones that can; it goes quiet with the sound. */
+const buzz = (pattern: number | number[]) => {
+  if (store.sound) navigator.vibrate?.(pattern);
+};
+
 const heartSVG = (on: boolean) =>
   `<svg viewBox="0 0 24 24" class="${on ? '' : 'is-lost'}" aria-hidden="true"><path d="M12 20.5s-8.5-5.2-8.5-11a4.6 4.6 0 0 1 8.5-2.5 4.6 4.6 0 0 1 8.5 2.5c0 5.8-8.5 11-8.5 11z" fill="${on ? '#E8273F' : 'none'}" stroke="#2B2340" stroke-width="2.4" stroke-linejoin="round"/></svg>`;
 
@@ -176,12 +181,15 @@ export function catchScreen(): Screen {
         if (e.first) say(`task-${e.target.id}`);
         break;
       case 'catch':
+        sfx.plop(e.pigment);
         sfx.catchDrop(e.combo);
-        blob.wiggle(2.2);
+        buzz(12);
+        blob.wiggle(-2.5); // the splash weighs the bucket down onto the head
         blob.react('yum', 450);
         break;
       case 'spoil':
         sfx.spoil();
+        buzz(60);
         blob.shake();
         if (!e.over) say(e.why === 'mud' ? 'catch-mud' : 'catch-extra');
         break;
@@ -191,6 +199,7 @@ export function catchScreen(): Screen {
         break;
       case 'win':
         sfx.win();
+        buzz([20, 60, 20, 60, 40]);
         blob.eat(e.target.hex, e.target.hex);
         blob.react('happy', 1500);
         say(`win-${e.target.id}`, `task-${e.next.id}`);
@@ -206,10 +215,12 @@ export function catchScreen(): Screen {
       }
       case 'land':
         blob.wiggle(-4.5);
+        buzz(15);
         sfx.plop('yellow');
         break;
       case 'thud':
         sfx.thud();
+        buzz(90);
         blob.react('oops', 1400);
         break;
       case 'mouse':
