@@ -235,19 +235,24 @@ svg {
    HOME
    ========================================================================== */
 
+/* the home screen scrolls rather than cuts the menu off where it does not
+   fit, but first gives up room where it can (see the media rules below) */
 .home {
   align-items: center;
-  justify-content: center;
+  justify-content: safe center;
   gap: clamp(10px, 2.4dvh, 26px);
   padding-top: 40px;
+  overflow-y: auto;
 }
 .home-topright {
   position: absolute;
   top: max(30px, env(safe-area-inset-top));
   right: max(22px, env(safe-area-inset-right));
   z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
-.home-topright { display: flex; align-items: center; gap: 12px; }
 .install-btn {
   display: flex;
   align-items: center;
@@ -379,6 +384,8 @@ svg {
 .menu-btn:nth-child(1) { animation-delay: 0.55s; }
 .menu-btn:nth-child(2) { animation-delay: 0.65s; }
 .menu-btn:nth-child(3) { animation-delay: 0.75s; }
+.menu-btn:nth-child(4) { animation-delay: 0.85s; }
+.menu-btn:nth-child(5) { animation-delay: 0.95s; }
 .menu-btn:hover { transform: translateY(-4px) rotate(-1deg); box-shadow: 0 12px 0 var(--ink); }
 .menu-btn:active { transform: translateY(6px); box-shadow: 0 2px 0 var(--ink); }
 .menu-icon {
@@ -390,18 +397,18 @@ svg {
   border-radius: 22px;
   border: var(--line) solid var(--ink);
   background: var(--icon-bg);
+  color: #fff;
 }
 .menu-icon svg { width: 32px; height: 32px; }
 .menu-text { display: flex; flex-direction: column; }
 .menu-text b { font-family: var(--display); font-weight: 800; font-size: 22px; }
 .menu-text small { font-size: 15px; color: var(--ink-2); }
 .menu-play { --icon-bg: var(--red); color: var(--ink); background: var(--yellow); }
-.menu-play .menu-icon { color: #fff; }
 .menu-play .menu-text small { color: var(--ink); opacity: 0.7; }
 .menu-studio { --icon-bg: var(--green); }
-.menu-studio .menu-icon { color: #fff; }
+.menu-paint { --icon-bg: var(--orange); }
 .menu-book { --icon-bg: var(--blue); }
-.menu-book .menu-icon { color: #fff; }
+.menu-catch { --icon-bg: var(--purple); }
 
 /* paint dripping from the top edge */
 .home-paints {
@@ -445,6 +452,68 @@ svg {
 }
 @keyframes drip {
   50% { transform: scaleY(1.35); }
+}
+
+/* Portrait tablets and phones: the menu is a column and the blob takes what
+   it leaves, down to a small one. The breakpoints match RESPONSIVE below. */
+@media (orientation: portrait) and (max-width: 1100px), (max-width: 560px) {
+  .lesson { display: none; }
+  .home-hero { display: contents; }
+  .tagline { margin-top: max(-4px, 6px - clamp(10px, 2.4dvh, 26px)); }
+  .home-stage {
+    flex: 0 1 calc(clamp(200px, min(36dvh, 40vw), 380px) * 0.84);
+    min-height: 96px;
+    container-type: size;
+  }
+  .home-blob { width: min(clamp(200px, min(36dvh, 40vw), 380px), 100cqh * 1.19); }
+  .home-menu { flex-direction: column; width: min(420px, 100%); }
+  .menu-btn { min-width: 0; }
+  /* room for the sound button and the quests button above the logo */
+  .home:has(> .quest-btn:not([hidden])) { padding-top: 92px; }
+}
+@media (max-width: 560px) {
+  .logo { font-size: clamp(56px, 17vw, 90px); }
+  .menu-btn { padding: 10px 18px 10px 10px; }
+  .menu-icon { width: 54px; height: 54px; }
+}
+/* five menu buttons: three over two on wide screens */
+@media (min-width: 900px) and (min-height: 561px) {
+  .home-menu { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); width: min(1080px, 100%); }
+  .menu-btn { grid-column: span 2; min-width: 0; }
+  .menu-btn:nth-child(4) { grid-column: 2 / span 2; }
+}
+@media (orientation: portrait) and (max-width: 560px) {
+  .home, .home:has(> .quest-btn:not([hidden])) { padding-top: 76px; }
+}
+@media (orientation: portrait) and (max-width: 1100px) and (max-height: 960px),
+  (max-width: 560px) and (max-height: 960px) {
+  .home { gap: 10px; }
+  .home-menu { gap: 12px; }
+  .menu-btn { padding: 8px 18px 8px 8px; border-radius: 24px; box-shadow: 0 6px 0 var(--ink); }
+  .menu-icon { width: 46px; height: 46px; border-radius: 16px; }
+  .menu-icon svg { width: 26px; height: 26px; }
+  .menu-text b { font-size: 20px; }
+}
+@media (orientation: portrait) and (max-height: 700px) {
+  .tagline, .menu-text small { display: none; }
+  .home-menu { gap: 10px; }
+  .menu-btn { padding: 6px 16px 6px 6px; }
+  .menu-icon { width: 42px; height: 42px; }
+}
+/* short landscape (phones on their side): the five buttons in one row */
+@media (max-height: 560px) and (orientation: landscape) {
+  .home { padding-top: 20px; }
+  .lesson { display: none; }
+  .home-menu { display: grid; grid-template-columns: repeat(5, auto); gap: 8px; }
+  .menu-btn { gap: 6px; min-width: 0; padding: 5px 10px 5px 5px; }
+  .menu-icon { width: 36px; height: 36px; border-radius: 13px; }
+  .menu-icon svg { width: 20px; height: 20px; }
+  .menu-text b { font-size: 13px; white-space: nowrap; }
+  .menu-text small { display: none; }
+}
+@media (max-height: 560px) and (orientation: landscape) and (max-width: 900px) {
+  .menu-icon { display: none; }
+  .menu-btn { padding: 8px 12px; }
 }
 
 /* ==========================================================================
@@ -1389,9 +1458,6 @@ svg {
   .stage-blob { width: min(100cqw, (100cqh - var(--readout-h)) * 1.2, 540px); }
   .jar { width: clamp(70px, min(14vw, 12dvh), 136px); }
   .bubble { right: 0; top: -6%; font-size: 17px; max-width: 220px; }
-  .lesson { display: none; }
-  .home-menu { flex-direction: column; width: min(420px, 100%); }
-  .menu-btn { min-width: 0; }
 }
 
 @media (max-width: 560px) {
@@ -1405,7 +1471,6 @@ svg {
   .tool[data-tool='pour'] { right: 0; }
   .tool span { display: none; }
   .tool svg { width: 52px; height: 52px; padding: 12px; }
-  .logo { font-size: clamp(56px, 17vw, 90px); }
   .jar { width: min(17vw, 86px); }
   .jar-label { font-size: 10px; padding: 2px 6px; border-width: 2.5px; }
   .eq-chip { height: 44px; font-size: 17px; }
@@ -1446,45 +1511,8 @@ svg {
   .studio-card .collection-dots { gap: 4px; padding: 6px; border-width: 2.5px; }
   .cdot { border-width: 2px; }
   .cdot.is-on { border-width: 2.5px; }
-  .update-banner {
-  position: fixed;
-  z-index: 95;
-  left: 50%;
-  /* top, over the title: the bottom is where kids tap the jars */
-  top: max(10px, env(safe-area-inset-top));
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 8px 8px 20px;
-  border-radius: 99px;
-  background: var(--card);
-  border: var(--line) solid var(--ink);
-  box-shadow: 0 7px 0 var(--ink);
-  width: max-content;
-  max-width: calc(100vw - 20px);
-  font-family: var(--display);
-  font-weight: 600;
-  line-height: 1.15;
-  translate: -50% 0;
-  animation: banner-in 0.5s var(--bounce) both;
-}
-.update-banner .btn { flex: none; height: 44px; padding: 0 16px; font-size: 14px; box-shadow: 0 4px 0 var(--ink); }
-@media (max-width: 560px) {
-  .update-banner { padding-left: 16px; gap: 8px; font-size: 14px; }
-  .update-banner .btn { height: 40px; padding: 0 12px; font-size: 13px; }
-}
-@keyframes banner-in {
-  from { transform: translateY(-160%); }
-}
-
-.modal-backdrop { padding: 70px 14px 14px; }
-  /* while the win dialog is up, nothing behind it animates */
-.mixer.is-paused .mixer-grid *,
-.mixer.is-paused .mixer-grid *::before,
-.mixer.is-paused .mixer-grid *::after {
-  animation-play-state: paused !important;
-}
-.win-card { padding: 0 16px 20px; box-shadow: 7px 8px 0 var(--ink); }
+  .modal-backdrop { padding: 70px 14px 14px; }
+  .win-card { padding: 0 16px 20px; box-shadow: 7px 8px 0 var(--ink); }
   .win-blob { width: 170px; margin-top: -84px; }
   .win-rays { width: 300px; height: 300px; top: -90px; }
   .win-title { font-size: 42px; }
@@ -1494,8 +1522,6 @@ svg {
   .win-actions { flex-wrap: nowrap; gap: 10px; }
   .win-actions .btn { height: 52px; padding: 0 14px; font-size: 15px; gap: 6px; }
   .win-actions .btn svg { width: 20px; height: 20px; }
-  .menu-btn { padding: 10px 18px 10px 10px; }
-  .menu-icon { width: 54px; height: 54px; }
 }
 
 /* short landscape (phones on their side) */
@@ -1507,12 +1533,6 @@ svg {
   .eq-chip { height: 40px; }
   .jar { width: min(10vw, 17dvh, 90px); }
   .tool span { display: none; }
-  .home { padding-top: 20px; }
-  .home-menu { flex-direction: row; }
-  .menu-btn { min-width: 0; padding: 8px 16px 8px 8px; }
-  .menu-icon { width: 46px; height: 46px; border-radius: 16px; }
-  .menu-text small { display: none; }
-  .lesson { display: none; }
   .topbar { min-height: 48px; }
   .topbar-title { font-size: 20px; }
   .icon-btn { width: 44px; height: 44px; box-shadow: 0 4px 0 var(--ink); }
@@ -1564,18 +1584,6 @@ svg {
 /* ==========================================================================
    COLORING
    ========================================================================== */
-
-.menu-paint { --icon-bg: var(--orange); }
-.menu-paint .menu-icon { color: #fff; }
-.menu-btn:nth-child(4) { animation-delay: 0.85s; }
-/* four menu buttons: one row on wide screens, two by two otherwise */
-@media (min-width: 900px) {
-  .home-menu { display: grid; grid-template-columns: repeat(2, minmax(250px, auto)); }
-}
-@media (min-width: 1240px) {
-  .home-menu { grid-template-columns: repeat(4, auto); }
-  .menu-btn { min-width: 0; }
-}
 
 /* ---------- picker ---------- */
 
@@ -1860,9 +1868,6 @@ svg {
 }
 
 @media (max-height: 560px) and (orientation: landscape) {
-  .home-menu { display: grid; grid-template-columns: repeat(4, auto); gap: 10px; }
-  .menu-btn { gap: 8px; padding: 6px 12px 6px 6px; }
-  .menu-text b { font-size: 16px; }
   /* height is scarce: the tools stand in a column beside the picture */
   .paint-stage { --tools-h: 0px; flex-direction: row; gap: 14px; }
   .picture-wrap { width: min(100cqw - 74px, 100cqh - 12px); }
@@ -1945,51 +1950,6 @@ label.parent-row { cursor: pointer; }
 /* ==========================================================================
    CATCH THE COLOR
    ========================================================================== */
-
-.menu-catch { --icon-bg: var(--purple); }
-.menu-catch .menu-icon { color: #fff; }
-.menu-btn:nth-child(5) { animation-delay: 0.95s; }
-/* five menu buttons: three over two on wide screens */
-@media (min-width: 900px) and (min-height: 561px) {
-  .home-menu { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); width: min(1080px, 100%); }
-  .menu-btn { grid-column: span 2; min-width: 0; }
-  .menu-btn:nth-child(4) { grid-column: 2 / span 2; }
-}
-/* the home screen scrolls rather than cuts the menu off where it does not
-   fit, but first gives up room where it can */
-.home { overflow-y: auto; justify-content: safe center; }
-@media (orientation: portrait) and (max-width: 1100px), (max-width: 560px) {
-  /* the blob takes what the menu leaves, down to a small one */
-  .home-hero { display: contents; }
-  .tagline { margin-top: max(-4px, 6px - clamp(10px, 2.4dvh, 26px)); }
-  .home-stage { width: 100%; }
-  .home-stage {
-    flex: 0 1 calc(clamp(200px, min(36dvh, 40vw), 380px) * 0.84);
-    min-height: 96px;
-    container-type: size;
-  }
-  .home-blob { width: min(clamp(200px, min(36dvh, 40vw), 380px), 100cqh * 1.19); }
-  /* room for the sound button and the quests button above the logo */
-  .home:has(> .quest-btn:not([hidden])) { padding-top: 92px; }
-}
-@media (orientation: portrait) and (max-width: 560px) {
-  .home, .home:has(> .quest-btn:not([hidden])) { padding-top: 76px; }
-}
-@media (orientation: portrait) and (max-width: 1100px) and (max-height: 960px),
-  (max-width: 560px) and (max-height: 960px) {
-  .home { gap: 10px; }
-  .home-menu { gap: 12px; }
-  .menu-btn { padding: 8px 18px 8px 8px; border-radius: 24px; box-shadow: 0 6px 0 var(--ink); }
-  .menu-icon { width: 46px; height: 46px; border-radius: 16px; }
-  .menu-icon svg { width: 26px; height: 26px; }
-  .menu-text b { font-size: 20px; }
-}
-@media (orientation: portrait) and (max-height: 700px) {
-  .tagline, .menu-text small { display: none; }
-  .home-menu { gap: 10px; }
-  .menu-btn { padding: 6px 16px 6px 6px; }
-  .menu-icon { width: 42px; height: 42px; }
-}
 
 .catch-card {
   display: grid;
@@ -2088,8 +2048,6 @@ label.parent-row { cursor: pointer; }
   .catch-rules { font-size: 15px; }
 }
 @media (max-height: 560px) and (orientation: landscape) {
-  .home-menu { grid-template-columns: repeat(5, auto); gap: 8px; }
-  .menu-catch { grid-column: auto; }
   /* the card stands beside the game, which needs all the height */
   .catch {
     display: grid;
@@ -2107,14 +2065,6 @@ label.parent-row { cursor: pointer; }
   .catch-score { flex-direction: row; justify-content: space-between; align-items: center; }
   .catch-pip svg { width: 18px; height: 23px; }
   .catch-stage { margin-top: 0; }
-  .menu-btn { gap: 6px; padding: 5px 10px 5px 5px; }
-  .menu-icon { width: 36px; height: 36px; border-radius: 13px; }
-  .menu-icon svg { width: 20px; height: 20px; }
-  .menu-text b { font-size: 13px; white-space: nowrap; }
-}
-@media (max-height: 560px) and (orientation: landscape) and (max-width: 900px) {
-  .menu-icon { display: none; }
-  .menu-btn { padding: 8px 12px; }
 }
 
 /* ==========================================================================
@@ -2326,17 +2276,12 @@ label.parent-row { cursor: pointer; }
 }
 
 @media (max-width: 560px) {
-  .quest-btn { top: max(24px, env(safe-area-inset-top)); left: 12px; height: 48px; font-size: 13px; padding-right: 14px; }
+  .quest-btn { top: max(12px, env(safe-area-inset-top)); left: 12px; height: 48px; font-size: 13px; padding-right: 14px; }
   .quest-btn-hero { width: 44px; }
   .quest-card { grid-template-columns: auto 1fr; gap: 10px; }
   .quest-hero { width: 84px; }
   .quest-thumb { grid-column: 1 / -1; justify-self: center; width: 70%; }
   .quest-text b { font-size: 20px; }
-}
-@media (max-width: 560px) {
   /* six jars once the gold one joins the shelf */
   .jars:has(.jar.is-gold) .jar { width: min(14.4vw, 86px); }
-}
-@media (max-width: 560px) {
-  .quest-btn { top: max(12px, env(safe-area-inset-top)); }
 }
