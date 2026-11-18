@@ -3,7 +3,7 @@
 // living Клякса under the bucket and the dialogs, and turns the game's events
 // into sounds, voice lines and the saved record.
 
-import { type CatchEvent, type Hud, LEVELS, LIVES, type Player, catchGame } from '../catch/game';
+import { type CatchEvent, type Hud, LIVES, type Player, catchGame } from '../catch/game';
 import { PaintBlob, swatchSVG } from '../blob';
 import { BODY_R, BOX, GROUND } from '../blob/shape';
 import { dropSVG } from '../jar';
@@ -118,6 +118,7 @@ export function catchScreen(): Screen {
     game.paused = false;
   };
   const goHome = () => go({ name: 'home' });
+  const togglePause = () => (modal && game.paused ? resume() : showPause());
 
   function showStart() {
     const best = store.catchBest;
@@ -159,13 +160,11 @@ export function catchScreen(): Screen {
   }
 
   // ---------- game ----------
-  let reached = LEVELS[0].target;
   let overTimer = 0;
 
   function on(e: CatchEvent) {
     switch (e.type) {
       case 'hud':
-        reached = e.hud.target;
         renderHud(e.hud);
         break;
       case 'level':
@@ -201,7 +200,7 @@ export function catchScreen(): Screen {
         sfx.gameOver();
         say(record ? 'catch-record' : 'catch-over');
         // the dialog waits until the bucket has fallen and settled
-        overTimer = window.setTimeout(() => showOver(e.score, record, reached), 1900);
+        overTimer = window.setTimeout(() => showOver(e.score, record, e.target), 1900);
         break;
       }
       case 'land':
@@ -272,8 +271,7 @@ export function catchScreen(): Screen {
   pourBtn.addEventListener('click', () => game.pour());
   $(root, '[data-pause]').addEventListener('click', () => {
     sfx.tap();
-    if (modal && game.paused) resume();
-    else showPause();
+    togglePause();
   });
 
   const onKey = (e: KeyboardEvent) => {
@@ -284,10 +282,8 @@ export function catchScreen(): Screen {
       return;
     }
     if (e.type !== 'keydown' || e.repeat) return;
-    if (e.code === 'Escape' || e.code === 'KeyP') {
-      if (modal && game.paused) resume();
-      else showPause();
-    } else if (modal) return;
+    if (e.code === 'Escape' || e.code === 'KeyP') togglePause();
+    else if (modal) return;
     else if (e.code === 'ArrowDown' || e.code === 'KeyS') game.pour();
     else if (e.code === 'Space' && !(e.target as HTMLElement).closest('button')) {
       e.preventDefault();

@@ -76,7 +76,7 @@ const lv = (id: string, ...drops: DropId[]): CatchLevel => ({
 /** Simple mixes first, then colors made from the mixed drops too. Each
  * recipe adds up to the target's own recipe, so the bucket ends exactly in
  * the target color. */
-export const LEVELS: CatchLevel[] = [
+const LEVELS: CatchLevel[] = [
   lv('orange', 'red', 'yellow'),
   lv('green', 'yellow', 'blue'),
   lv('purple', 'red', 'blue'),
@@ -120,7 +120,8 @@ export type CatchEvent =
   | { type: 'spoil'; why: 'mud' | 'extra'; over: boolean }
   | { type: 'pour' }
   | { type: 'win'; target: NamedColor; next: NamedColor }
-  | { type: 'over'; score: number; level: number }
+  /** `target` is the color the game ended on */
+  | { type: 'over'; score: number; target: NamedColor }
   | { type: 'mouse' }
   /** the bucket hit the shelf after the last life */
   | { type: 'thud' }
@@ -369,7 +370,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
       phase = 'over';
       phaseT = 0;
       drops = [];
-      opts.on({ type: 'over', score, level });
+      opts.on({ type: 'over', score, target: stage.target });
     }
   }
 
