@@ -1,4 +1,4 @@
-import { type Drops, type Pigment, distance, emptyDrops, mixHex, totalDrops } from './color';
+import { type Drops, type Pigment, PIGMENTS, distance, emptyDrops, mixHex, totalDrops } from './color';
 
 export interface PaintInfo {
   id: Pigment;
@@ -87,4 +87,41 @@ export function nearest(d: Drops): { color: NamedColor; dist: number } | null {
     }
   }
   return { color: best, dist: bestD };
+}
+
+/** What a non-empty mix is called: its name, "Почти …" or "Новый оттенок". */
+export function colorLabel(d: Drops): string {
+  const n = nearest(d)!;
+  if (n.dist < MATCH) return n.color.name;
+  return n.dist < NEAR ? `Почти ${n.color.name.toLowerCase()}` : 'Новый оттенок';
+}
+
+export type Suggestion = { kind: 'add'; pigment: Pigment } | { kind: 'undo' } | { kind: 'pour' } | { kind: 'done' };
+
+/**
+ * What should the kid do next to reach `target`? Finds the smallest multiple
+ * of the recipe that contains the current drops and points at the paint that
+ * is missing the most.
+ */
+export function suggest(cur: Drops, history: Pigment[], target: Drops): Suggestion {
+  if (distance(cur, target) < MATCH) return { kind: 'done' };
+  const stray = PIGMENTS.filter((p) => cur[p] > 0 && target[p] === 0);
+  if (stray.length) {
+    const last = history.at(-1);
+    const onlyLast = stray.length === 1 && last === stray[0] && cur[stray[0]] === 1;
+    return onlyLast ? { kind: 'undo' } : { kind: 'pour' };
+  }
+  let k = 1;
+  for (const p of PIGMENTS) if (target[p]) k = Math.max(k, Math.ceil(cur[p] / target[p]));
+  if (k * totalDrops(target) > MAX_DROPS) return { kind: 'pour' };
+  let best: Pigment = 'red';
+  let need = -1;
+  for (const p of PIGMENTS) {
+    const missing = k * target[p] - cur[p];
+    if (missing > need) {
+      need = missing;
+      best = p;
+    }
+  }
+  return { kind: 'add', pigment: best };
 }

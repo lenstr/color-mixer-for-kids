@@ -1,5 +1,5 @@
 import { type Drops, type Pigment, PIGMENTS, distance, emptyDrops, mixHex, totalDrops } from '../color';
-import { MATCH, MAX_DROPS, MIX_COLORS, NEAR, PAINTS, PAINT_BY_ID, nearest } from '../data';
+import { MATCH, MAX_DROPS, MIX_COLORS, NEAR, PAINTS, PAINT_BY_ID, colorLabel, nearest, suggest } from '../data';
 import { PaintBlob } from '../blob';
 import { swatchSVG } from '../blob';
 import { dropSVG, jarButton } from '../jar';
@@ -9,37 +9,8 @@ import { sfx } from '../audio';
 import { say, preload } from '../speech';
 import { store } from '../storage';
 import { burst, warmup } from '../confetti';
-import { $, type Screen, go, html, plural, toast, topBar } from '../ui';
+import { $, type Screen, go, html, plural, restartClass, speechBubble, toast, topBar } from '../ui';
 
-type Suggestion = { kind: 'add'; pigment: Pigment } | { kind: 'undo' } | { kind: 'pour' } | { kind: 'done' };
-
-/**
- * What should the kid do next to reach `target`? Finds the smallest multiple
- * of the recipe that contains the current drops and points at the paint that
- * is missing the most.
- */
-export function suggest(cur: Drops, history: Pigment[], target: Drops): Suggestion {
-  if (distance(cur, target) < MATCH) return { kind: 'done' };
-  const stray = PIGMENTS.filter((p) => cur[p] > 0 && target[p] === 0);
-  if (stray.length) {
-    const last = history.at(-1);
-    const onlyLast = stray.length === 1 && last === stray[0] && cur[stray[0]] === 1;
-    return onlyLast ? { kind: 'undo' } : { kind: 'pour' };
-  }
-  let k = 1;
-  for (const p of PIGMENTS) if (target[p]) k = Math.max(k, Math.ceil(cur[p] / target[p]));
-  if (k * totalDrops(target) > MAX_DROPS) return { kind: 'pour' };
-  let best: Pigment = 'red';
-  let need = -1;
-  for (const p of PIGMENTS) {
-    const missing = k * target[p] - cur[p];
-    if (missing > need) {
-      need = missing;
-      best = p;
-    }
-  }
-  return { kind: 'add', pigment: best };
-}
 
 /** Sunburst behind the win blob, as a ready-made image the GPU just spins. */
 function raysImage(hex: string) {
@@ -72,7 +43,6 @@ export function mixerScreen(levelIndex: number | null): Screen {
   let inFlight = 0;
   let lastSpoken = '';
   let speakTimer = 0;
-  let bubbleTimer = 0;
 
   const root = html(`<section class="screen mixer ${isLevel ? 'is-level' : 'is-studio'}"></section>`);
   root.append(
@@ -179,11 +149,7 @@ export function mixerScreen(levelIndex: number | null): Screen {
       nameEl.style.setProperty('--c', 'transparent');
       eqEl.innerHTML = `<span class="eq-empty">Нажми на баночку с краской</span>`;
     } else {
-      const n = nearest(d)!;
-      let label = 'Новый оттенок';
-      if (n.dist < MATCH) label = n.color.name;
-      else if (n.dist < NEAR) label = `Почти ${n.color.name.toLowerCase()}`;
-      nameEl.textContent = label;
+      nameEl.textContent = colorLabel(d);
       nameEl.style.setProperty('--c', hex);
       const parts = PIGMENTS.filter((p) => d[p] > 0).map(
         (p) => `<span class="eq-chip" title="${d[p]} ${plural(d[p], 'капля', 'капли', 'капель')}">
@@ -193,9 +159,7 @@ export function mixerScreen(levelIndex: number | null): Screen {
         parts.join('<span class="eq-op">+</span>') +
         `<span class="eq-op">=</span><span class="eq-result">${swatchSVG(hex, 5)}</span>`;
     }
-    nameEl.classList.remove('pop');
-    void nameEl.offsetWidth;
-    nameEl.classList.add('pop');
+    restartClass(nameEl, 'pop');
 
     if (level && meterFill && meterLabel) {
       const dist = total ? distance(d, level.recipe) : Infinity;
@@ -211,14 +175,8 @@ export function mixerScreen(levelIndex: number | null): Screen {
     blob.setBaseMood(total ? 'smile' : 'hungry');
   }
 
-  function showBubble(text: string, ms = 2600) {
-    bubble.innerHTML = text;
-    bubble.classList.remove('is-on');
-    void bubble.offsetWidth;
-    bubble.classList.add('is-on');
-    clearTimeout(bubbleTimer);
-    bubbleTimer = window.setTimeout(() => bubble.classList.remove('is-on'), ms);
-  }
+  const speech = speechBubble(bubble);
+  const showBubble = speech.show;
 
   function clearHints() {
     jarBtns.forEach((b) => b.classList.remove('is-hinted'));
@@ -245,9 +203,7 @@ export function mixerScreen(levelIndex: number | null): Screen {
     const paint = PAINT_BY_ID[p];
 
     sfx.squeeze(p);
-    jar.classList.remove('is-squeezed');
-    void jar.offsetWidth;
-    jar.classList.add('is-squeezed');
+    restartClass(jar, 'is-squeezed');
     blob.expect();
     inFlight++;
     undoBtn.disabled = pourBtn.disabled = true;
@@ -460,7 +416,7 @@ export function mixerScreen(levelIndex: number | null): Screen {
       blob.destroy();
       cleanup.forEach((f) => f());
       clearTimeout(speakTimer);
-      clearTimeout(bubbleTimer);
+      speech.dispose();
       window.removeEventListener('keydown', onKey);
       clearEffects();
     },

@@ -1708,7 +1708,9 @@ svg {
   60% { transform: scale(0.99) rotate(1deg); }
 }
 .paint .region { cursor: pointer; }
-.region.is-hinted .region-line { animation: line-glow 0.7s ease-in-out infinite alternate; }
+/* a few pulses only: an endless stroke animation repaints the whole picture */
+.region.is-hinted .region-line,
+.region-over.is-hinted .region-line { animation: line-glow 0.7s ease-in-out 6 alternate; }
 @keyframes line-glow {
   to { stroke: var(--yellow); stroke-width: 10px; }
 }
@@ -1718,14 +1720,16 @@ svg {
   stroke-width: 3.5px;
   transform-box: fill-box;
   transform-origin: center;
-  animation: dot-pulse 1.8s ease-in-out infinite;
   transition: opacity 0.3s, scale 0.3s;
 }
+/* only dots in sight pulse; each frame repaints the picture */
+.paint.is-hint .hint-dot:not(.is-done),
+.paint.is-task .hint-dot.is-shown:not(.is-done) { animation: dot-pulse 1.8s ease-in-out infinite; }
 .paint.is-free .hint-dot { display: none; }
 /* in the task the kid recalls the real colors; a dot shows up after a miss or a hint */
 .paint.is-task .hint-dot:not(.is-shown) { opacity: 0; scale: 0; }
 .hint-dot.is-done { opacity: 0; scale: 0; }
-.hint-dot.is-wanted { animation: dot-want 0.45s ease-in-out infinite alternate; }
+.paint .hints .hint-dot.is-wanted:not(.is-done) { animation: dot-want 0.45s ease-in-out 8 alternate; }
 @keyframes dot-pulse {
   50% { transform: scale(1.18); }
 }

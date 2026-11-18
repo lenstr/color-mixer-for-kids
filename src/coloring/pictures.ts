@@ -75,7 +75,6 @@ function rays(cx: number, cy: number, r1: number, r2: number, count = 8, from = 
   }
   return line(d, 5);
 }
-const outline = (d: string) => `<path d="${d}" fill="none" stroke="${INK}" stroke-width="5" stroke-linejoin="round"/>`;
 
 // ---------- pictures ----------
 
@@ -119,7 +118,7 @@ const mushroom: Picture = (() => {
       { id: 'spot4', target: 'white', d: circle(184, 184, 13), clip: 'cap' },
       { id: 'spot5', target: 'white', d: circle(316, 200, 16), clip: 'cap' },
     ],
-    deco: outline(cap) + gloss('M104 168C108 136 128 112 152 100', 9) + face(201, 268, 1) + grass([30, 90, 300, 350], 372),
+    deco: gloss('M104 168C108 136 128 112 152 100', 9) + face(201, 268, 1) + grass([30, 90, 300, 350], 372),
   };
 })();
 
@@ -201,7 +200,6 @@ const fish: Picture = (() => {
       { id: 'bubble3', target: 'white', d: circle(326, 40, 7) },
     ],
     deco:
-      outline(body) +
       dot(287, 187, 7) +
       dot(290, 183, 2.5, '#fff') +
       line('M292 220Q302 222 306 214', 4.5) +
@@ -258,7 +256,6 @@ const ladybug: Picture = (() => {
     ],
     deco:
       line('M56 326C76 314 94 302 112 290M300 160C320 140 340 118 360 96', 4) +
-      outline(body) +
       line('M200 132V322') +
       line('M184 88C176 62 160 50 146 52M216 88C224 62 240 50 254 52', 4.5) +
       dot(146, 52, 7) +

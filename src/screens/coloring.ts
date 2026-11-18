@@ -1,29 +1,14 @@
 // Picks a coloring page and the way to paint it. The tiles show the kid's
 // own work, so this screen doubles as the gallery.
 
-import { PICTURES, type Picture } from '../coloring/pictures';
+import { PICTURES } from '../coloring/pictures';
+import { MODES, progress } from '../coloring/rules';
 import { pictureSVG } from '../coloring/render';
 import { icon } from '../icons';
 import { sfx } from '../audio';
 import { say } from '../speech';
 import { type PaintMode, store } from '../storage';
 import { type Screen, go, html, topBar } from '../ui';
-
-export const MODES: { id: PaintMode; name: string; note: string; icon: string }[] = [
-  { id: 'free', name: 'Свободно', note: 'любые цвета', icon: icon.palette },
-  { id: 'hint', name: 'С подсказкой', note: 'точки подскажут', icon: icon.bulb },
-  { id: 'task', name: 'Задание', note: 'вспомни настоящий цвет', icon: icon.target },
-];
-
-/** How far the kid got: 'perfect' when every part has its real color. */
-export function progress(pic: Picture) {
-  const art = store.artwork(pic.id);
-  const painted = pic.regions.filter((r) => art.fills[r.id]).length;
-  const right = pic.regions.filter((r) => art.ok.includes(r.id)).length;
-  const state =
-    right === pic.regions.length ? 'perfect' : painted === pic.regions.length ? 'done' : painted ? 'started' : 'new';
-  return { art, state };
-}
 
 export function coloringScreen(): Screen {
   const root = html(`<section class="screen coloring"></section>`);
@@ -57,7 +42,8 @@ export function coloringScreen(): Screen {
 
   const grid = html(`<div class="paint-grid-list"></div>`);
   PICTURES.forEach((pic, i) => {
-    const { art, state } = progress(pic);
+    const art = store.artwork(pic.id);
+    const state = progress(pic, art);
     const badge =
       state === 'perfect'
         ? `<span class="paint-badge is-perfect" aria-label="Все цвета точные">${icon.star}</span>`

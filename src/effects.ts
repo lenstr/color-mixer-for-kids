@@ -10,7 +10,7 @@ export interface Point {
   y: number;
 }
 
-const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+export const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /** The point a drop leaves a jar from, in page coordinates. */
 export function jarMouth(jar: HTMLElement): Point {

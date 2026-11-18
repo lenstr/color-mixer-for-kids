@@ -83,6 +83,29 @@ export function toast(title: string, subtitle: string, hex: string) {
   }, 2800);
 }
 
+/** Replays a CSS animation bound to `cls`. */
+export function restartClass(el: Element, cls: string) {
+  el.classList.remove(cls);
+  void el.getBoundingClientRect();
+  el.classList.add(cls);
+}
+
+/** A speech bubble that pops up with `show` and hides itself after `ms`. */
+export function speechBubble(el: HTMLElement) {
+  let timer = 0;
+  return {
+    show(text: string, ms = 2600) {
+      el.innerHTML = text;
+      restartClass(el, 'is-on');
+      clearTimeout(timer);
+      timer = window.setTimeout(() => el.classList.remove('is-on'), ms);
+    },
+    dispose() {
+      clearTimeout(timer);
+    },
+  };
+}
+
 /** "2 капли" / "5 капель" */
 export function plural(n: number, one: string, few: string, many: string) {
   const m10 = n % 10, m100 = n % 100;

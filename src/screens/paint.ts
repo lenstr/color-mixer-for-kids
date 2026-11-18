@@ -1,6 +1,6 @@
 // Coloring page: mix paint on the brush blob with the jars, or pick a color
 // the kid has already found, then tap a part of the picture and the paint
-// spreads from the finger. Modes (storage.ts PaintMode) decide whether hint
+// spreads from the finger. Modes (coloring/rules.ts) decide whether hint
 // dots show the real colors and whether a wrong color sticks.
 
 import { type Drops, type Pigment, PIGMENTS, distance, emptyDrops, mixHex, totalDrops } from '../color';
@@ -9,26 +9,27 @@ import {
   COLOR_BY_ID,
   MATCH,
   MAX_DROPS,
-  NEAR,
+  MIX_COLORS,
   type NamedColor,
   PAINTS,
   PAINT_BY_ID,
+  colorLabel,
   nearest,
+  suggest,
 } from '../data';
 import type { Picture, Region } from '../coloring/pictures';
-import { DOTS, pictureSVG } from '../coloring/render';
+import { emptyFill, pictureSVG } from '../coloring/render';
 import { type Anchor, anchors } from '../coloring/anchors';
+import { MODES, isComplete, isPerfect } from '../coloring/rules';
 import { PaintBlob, swatchSVG } from '../blob';
 import { jarButton } from '../jar';
-import { clearEffects, flyDrop, jarMouth, splash } from '../effects';
+import { type Point, clearEffects, flyDrop, jarMouth, reduced, splash } from '../effects';
 import { icon } from '../icons';
 import { sfx } from '../audio';
 import { preload, say } from '../speech';
 import { type Artwork, store } from '../storage';
 import { burst, warmup } from '../confetti';
-import { $, type Screen, html, toast, topBar } from '../ui';
-import { MODES } from './coloring';
-import { suggest } from './mixer';
+import { $, type Screen, html, restartClass, speechBubble, toast, topBar } from '../ui';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const UNDO_LIMIT = 40;
@@ -45,8 +46,6 @@ const SPLAT = (() => {
   return `${d}Z`;
 })();
 
-const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
-
 /** Pigments of a recipe as a drop history, so undo works on a picked color too. */
 const historyOf = (d: Drops) => PIGMENTS.flatMap((p) => Array<Pigment>(d[p]).fill(p));
 
@@ -55,7 +54,7 @@ export function paintScreen(pic: Picture): Screen {
   const modeInfo = MODES.find((m) => m.id === mode)!;
   const regionById = new Map(pic.regions.map((r) => [r.id, r]));
   const art: Artwork = store.artwork(pic.id);
-  // drop marks of regions painted before a target changed
+  // keep marks only for parts that still exist and are painted
   art.ok = art.ok.filter((id) => art.fills[id] && regionById.has(id));
   const undoStack: Artwork[] = [];
 
@@ -63,9 +62,6 @@ export function paintScreen(pic: Picture): Screen {
   let history: Pigment[] = [];
   let inFlight = 0;
   let lastWrong: Region | null = null;
-  let celebrated = isComplete();
-  let perfectCelebrated = isPerfect();
-  let bubbleTimer = 0;
   let clearTimer = 0;
 
   const root = html(`<section class="screen paint is-${mode}"></section>`);
@@ -80,7 +76,7 @@ export function paintScreen(pic: Picture): Screen {
   const grid = html(`
     <div class="mixer-grid paint-layout">
       <div class="stage paint-stage">
-        <div class="picture-wrap">${pictureSVG(pic, fillsForScreen())}</div>
+        <div class="picture-wrap">${pictureSVG(pic, art.fills, { dotted: true, interactive: true })}</div>
         <div class="paint-tools">
           <button class="paint-tool" data-act="undo" aria-label="Отменить">${icon.undo}<span>Назад</span></button>
           <button class="paint-tool" data-act="clear" aria-label="Стереть всё">${icon.eraser}<span>Стереть</span></button>
@@ -105,6 +101,7 @@ export function paintScreen(pic: Picture): Screen {
   root.append(grid);
 
   const svg = $<SVGSVGElement>(grid, '.picture-svg');
+  const EMPTY = emptyFill(svg);
   const brushBlobEl = $(grid, '.brush-blob');
   const bubble = $(grid, '.bubble');
   const nameEl = $(grid, '.brush-name');
@@ -118,17 +115,24 @@ export function paintScreen(pic: Picture): Screen {
   const saveBtn = $<HTMLButtonElement>(grid, '[data-act="save"]');
   hintBtn.hidden = mode === 'free';
 
+  const speech = speechBubble(bubble);
+  const showBubble = speech.show;
+
   const blob = new PaintBlob({ face: true, color: null, seed: 5 });
   brushBlobEl.prepend(blob.el);
   blob.setBaseMood('hungry');
 
   // ---------- picture ----------
 
-  function fillsForScreen() {
-    return Object.fromEntries(pic.regions.map((r) => [r.id, art.fills[r.id] ?? DOTS]));
-  }
-  const regionEl = (id: string) => svg.querySelector<SVGGElement>(`.region[data-id="${id}"]`)!;
-  const fillEl = (id: string) => regionEl(id).querySelector<SVGPathElement>('.region-fill')!;
+  const parts = new Map(
+    pic.regions.map((r) => {
+      const g = svg.querySelector<SVGGElement>(`.region[data-id="${r.id}"]`)!;
+      return [r.id, { g, fill: g.querySelector<SVGPathElement>('.region-fill')!, spread: g.querySelector('.region-spread')! }];
+    }),
+  );
+  const part = (id: string) => parts.get(id)!;
+  const complete = () => isComplete(pic, art);
+  const perfect = () => isPerfect(pic, art);
 
   // hint dots over everything, at each region's deepest point
   const hintLayer = document.createElementNS(SVG_NS, 'g');
@@ -156,11 +160,9 @@ export function paintScreen(pic: Picture): Screen {
     });
   }
 
-  function isComplete() {
-    return pic.regions.every((r) => art.fills[r.id]);
-  }
-  function isPerfect() {
-    return pic.regions.every((r) => art.ok.includes(r.id));
+  /** Shows a part's hint dot, which the task mode keeps hidden until needed. */
+  function revealDot(id: string) {
+    hintLayer.querySelector(`[data-id="${id}"]`)?.classList.add('is-shown', 'is-wanted');
   }
 
   function pushUndo() {
@@ -175,14 +177,22 @@ export function paintScreen(pic: Picture): Screen {
     undoBtn.disabled = !undoStack.length;
   }
 
-  /** Repaints every region at once, after undo or clear. */
-  function redrawAll() {
+  /** Repaints the parts that differ from `before`, after undo or clear. */
+  function redraw(before: Record<string, string>) {
     for (const r of pic.regions) {
-      const el = fillEl(r.id);
-      const next = art.fills[r.id] ? art.fills[r.id] : `url(#${svg.querySelector('pattern')!.id})`;
-      el.setAttribute('fill', next);
+      if (before[r.id] === art.fills[r.id]) continue;
+      const el = part(r.id).fill;
+      el.setAttribute('fill', art.fills[r.id] ?? EMPTY);
       el.animate([{ opacity: 0.3 }, { opacity: 1 }], { duration: 300 });
     }
+  }
+
+  function addSplat(r: Region, hex: string) {
+    const splat = document.createElementNS(SVG_NS, 'path');
+    splat.setAttribute('d', SPLAT);
+    splat.setAttribute('fill', hex);
+    part(r.id).spread.append(splat);
+    return splat;
   }
 
   const spreadToken = new Map<string, number>();
@@ -191,12 +201,9 @@ export function paintScreen(pic: Picture): Screen {
   function spread(r: Region, at: DOMPoint, hex: string, done: () => void) {
     const token = (spreadToken.get(r.id) ?? 0) + 1;
     spreadToken.set(r.id, token);
-    const layer = regionEl(r.id).querySelector('.region-spread')!;
-    const splat = document.createElementNS(SVG_NS, 'path');
-    splat.setAttribute('d', SPLAT);
-    splat.setAttribute('fill', hex);
-    layer.append(splat);
-    const box = fillEl(r.id).getBBox();
+    const { fill, spread: layer } = part(r.id);
+    const splat = addSplat(r, hex);
+    const box = fill.getBBox();
     const far = Math.max(
       ...[
         [box.x, box.y],
@@ -213,7 +220,7 @@ export function paintScreen(pic: Picture): Screen {
       easing: 'cubic-bezier(.15,.75,.3,1)',
     }).onfinish = () => {
       if (spreadToken.get(r.id) === token) {
-        fillEl(r.id).setAttribute('fill', hex);
+        fill.setAttribute('fill', hex);
         layer.replaceChildren();
       } else splat.remove();
       done();
@@ -222,11 +229,7 @@ export function paintScreen(pic: Picture): Screen {
 
   /** Wrong color in task mode: the paint lands, then shrinks away. */
   function bounce(r: Region, at: DOMPoint, hex: string) {
-    const layer = regionEl(r.id).querySelector('.region-spread')!;
-    const splat = document.createElementNS(SVG_NS, 'path');
-    splat.setAttribute('d', SPLAT);
-    splat.setAttribute('fill', hex);
-    layer.append(splat);
+    const splat = addSplat(r, hex);
     const t = (s: number) => `translate(${at.x}px, ${at.y}px) scale(${s})`;
     splat.animate(
       [
@@ -237,7 +240,7 @@ export function paintScreen(pic: Picture): Screen {
       ],
       { duration: 700, easing: 'ease-in-out' },
     ).onfinish = () => splat.remove();
-    regionEl(r.id).animate(
+    part(r.id).g.animate(
       [
         { transform: 'translateX(0)' },
         { transform: 'translateX(-5px)' },
@@ -259,7 +262,7 @@ export function paintScreen(pic: Picture): Screen {
     paintRegion(regionById.get(g.dataset.id!)!, toArtboard(e), { x: e.clientX, y: e.clientY });
   });
 
-  function paintRegion(r: Region, at: DOMPoint, page: { x: number; y: number }) {
+  function paintRegion(r: Region, at: DOMPoint, page: Point) {
     clearHints();
     const hex = mixHex(drops);
     if (!hex) {
@@ -281,41 +284,38 @@ export function paintScreen(pic: Picture): Screen {
         sfx.full();
         bounce(r, at, hex);
         showBubble(`Сюда нужен <b style="--c:${target.hex}">${target.name.toLowerCase()}</b>`);
-        hintLayer.querySelector(`[data-id="${r.id}"]`)?.classList.add('is-shown', 'is-wanted');
+        revealDot(r.id);
         say('wrong-color');
       }, 320);
       return;
     }
 
+    const was = { complete: complete(), perfect: perfect() };
     pushUndo();
     art.fills[r.id] = hex;
     art.ok = art.ok.filter((id) => id !== r.id);
     if (ok) art.ok.push(r.id);
-    if (r === lastWrong && ok) lastWrong = null;
+    if (r === lastWrong) lastWrong = null;
     persist();
 
     flyDrop(blob.mouthPoint(), page, hex, () => {
       sfx.plop(dominant(drops));
       splash(page, hex, 7);
-      spread(r, at, hex, () => afterPaint(r, ok, page));
+      spread(r, at, hex, () => afterPaint(r, ok, page, was));
     }, 320);
   }
 
-  function afterPaint(r: Region, ok: boolean, page: { x: number; y: number }) {
+  /** Cheers once the picture becomes complete or perfect with this stroke. */
+  function afterPaint(r: Region, ok: boolean, page: Point, was: { complete: boolean; perfect: boolean }) {
     if (ok && mode !== 'free') {
       sfx.star(Math.min(art.ok.length % 4, 3));
       burst([COLOR_BY_ID[r.target].hex, '#FFD21F', '#FFFDF7'], { ...page, count: 14 });
     }
-    if (isPerfect() && !perfectCelebrated) {
-      perfectCelebrated = celebrated = true;
-      celebrate(true);
-    } else if (isComplete() && !celebrated) {
-      celebrated = true;
-      celebrate(mode === 'free');
-    }
+    if (!was.perfect && perfect()) celebrate(true);
+    else if (!was.complete && complete()) celebrate(false);
   }
 
-  function celebrate(perfect: boolean) {
+  function celebrate(exact: boolean) {
     sfx.win();
     blob.setBaseMood('happy');
     blob.react('happy', 3000);
@@ -323,13 +323,10 @@ export function paintScreen(pic: Picture): Screen {
     const box = svg.getBoundingClientRect();
     const colors = [...new Set(Object.values(art.fills))];
     burst([...colors, '#FFD21F'], { x: box.left + box.width / 2, y: box.top + box.height * 0.35, count: 110 });
-    const exact = perfect && isPerfect();
     showBubble(exact ? 'Все цвета как настоящие!' : 'Готово! Красота!', 3600);
     say(exact ? 'picture-perfect' : 'picture-done');
     saveBtn.classList.add('is-hinted');
-    svg.classList.remove('is-cheering');
-    void svg.getBoundingClientRect();
-    svg.classList.add('is-cheering');
+    restartClass(svg, 'is-cheering');
   }
 
   const dominant = (d: Drops) => PIGMENTS.reduce((a, b) => (d[b] > d[a] ? b : a));
@@ -341,11 +338,10 @@ export function paintScreen(pic: Picture): Screen {
     const prev = undoStack.pop();
     if (!prev) return;
     sfx.undo();
+    const before = art.fills;
     art.fills = prev.fills;
     art.ok = prev.ok;
-    celebrated = isComplete();
-    perfectCelebrated = isPerfect();
-    redrawAll();
+    redraw(before);
     persist();
   });
 
@@ -360,11 +356,11 @@ export function paintScreen(pic: Picture): Screen {
     }
     disarmClear();
     pushUndo();
+    const before = art.fills;
     art.fills = {};
     art.ok = [];
-    celebrated = perfectCelebrated = false;
     sfx.pour();
-    redrawAll();
+    redraw(before);
     persist();
   });
   function disarmClear() {
@@ -419,9 +415,7 @@ export function paintScreen(pic: Picture): Screen {
     const snapshot = { ...drops };
     const paint = PAINT_BY_ID[p];
     sfx.squeeze(p);
-    jar.classList.remove('is-squeezed');
-    void jar.offsetWidth;
-    jar.classList.add('is-squeezed');
+    restartClass(jar, 'is-squeezed');
     blob.expect();
     inFlight++;
     renderBrush();
@@ -441,6 +435,7 @@ export function paintScreen(pic: Picture): Screen {
     blob.jump();
     toast('Новый цвет!', n.color.name, n.color.hex);
     say(`found-${n.color.id}`);
+    if (store.discoveredCount() === MIX_COLORS.length) setTimeout(() => say('all-found'), 2200);
     renderMyColors();
   }
 
@@ -507,14 +502,10 @@ export function paintScreen(pic: Picture): Screen {
       nameEl.textContent = 'Набери краску';
       nameEl.style.setProperty('--c', 'transparent');
     } else {
-      const n = nearest(drops)!;
-      nameEl.textContent =
-        n.dist < MATCH ? n.color.name : n.dist < NEAR ? `Почти ${n.color.name.toLowerCase()}` : 'Новый оттенок';
+      nameEl.textContent = colorLabel(drops);
       nameEl.style.setProperty('--c', hex);
     }
-    nameEl.classList.remove('pop');
-    void nameEl.offsetWidth;
-    nameEl.classList.add('pop');
+    restartClass(nameEl, 'pop');
     dropUndoBtn.disabled = !history.length;
     pourBtn.disabled = !total;
     blob.setBaseMood(total ? 'smile' : 'hungry');
@@ -540,8 +531,10 @@ export function paintScreen(pic: Picture): Screen {
       return;
     }
     const target = COLOR_BY_ID[r.target];
-    regionEl(r.id).classList.add('is-hinted');
-    hintLayer.querySelector(`[data-id="${r.id}"]`)?.classList.add('is-shown', 'is-wanted');
+    svg
+      .querySelectorAll(`.region[data-id="${r.id}"], .region-over[data-id="${r.id}"]`)
+      .forEach((g) => g.classList.add('is-hinted'));
+    revealDot(r.id);
     myColors.querySelector(`[data-color="${target.id}"]`)?.classList.add('is-hinted');
     const s = suggest(drops, history, target.recipe);
     const lines = [`name-${target.id}`];
@@ -559,15 +552,6 @@ export function paintScreen(pic: Picture): Screen {
     showBubble(`Здесь нужен <b style="--c:${target.hex}">${target.name.toLowerCase()}</b>${tail}`, 3600);
     say(...lines);
   });
-
-  function showBubble(text: string, ms = 2600) {
-    bubble.innerHTML = text;
-    bubble.classList.remove('is-on');
-    void bubble.offsetWidth;
-    bubble.classList.add('is-on');
-    clearTimeout(bubbleTimer);
-    bubbleTimer = window.setTimeout(() => bubble.classList.remove('is-on'), ms);
-  }
 
   // ---------- keyboard ----------
 
@@ -597,7 +581,7 @@ export function paintScreen(pic: Picture): Screen {
     destroy() {
       blob.destroy();
       clearEffects();
-      clearTimeout(bubbleTimer);
+      speech.dispose();
       clearTimeout(clearTimer);
       window.removeEventListener('keydown', onKey);
     },
