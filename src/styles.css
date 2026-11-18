@@ -1919,6 +1919,8 @@ label.parent-row { cursor: pointer; }
 .parent-question { margin: 0; font-size: 22px; }
 .parent-answers { display: flex; gap: 14px; }
 .parent-answers .btn { flex: 1; padding: 0; font-size: 24px; }
+.parent-dev { flex-wrap: wrap; }
+.parent-dev > span { flex-basis: 100%; }
 @media (max-width: 520px) {
   .parent-card { padding: 20px 18px 22px; }
   .parent-reset { flex-wrap: wrap; }

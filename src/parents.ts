@@ -74,6 +74,10 @@ function openParentPanel(btn: HTMLElement, onChange: () => void) {
         <button class="btn btn-danger" data-confirm hidden>Да, стереть</button>
       </div>
       <button class="btn btn-primary" data-close>Готово</button>`;
+    if (import.meta.env.DEV)
+      void import('./story/dev').then(({ devStoryRow }) =>
+        body.querySelector('[data-close]')!.before(devStoryRow(close)),
+      );
     $<HTMLInputElement>(body, '[data-unlock]').addEventListener('change', (e) => {
       store.unlockAll = (e.target as HTMLInputElement).checked;
       changed = true;
