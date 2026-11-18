@@ -51,6 +51,7 @@ export const MIX_COLORS: NamedColor[] = [
   named('gray', 'Серый', { white: 1, black: 1 }),
   named('brown', 'Коричневый', { red: 1, yellow: 1, blue: 1 }),
   named('honey', 'Медовый', { red: 1, yellow: 2 }),
+  named('carrot', 'Морковный', { red: 2, yellow: 1 }),
   named('lime', 'Салатовый', { yellow: 2, blue: 1 }),
   named('raspberry', 'Малиновый', { red: 2, blue: 1 }),
   named('turquoise', 'Бирюзовый', { yellow: 1, blue: 2 }),
@@ -60,7 +61,6 @@ export const MIX_COLORS: NamedColor[] = [
   named('burgundy', 'Бордовый', { red: 2, black: 1 }),
   named('navy', 'Тёмно-синий', { blue: 2, black: 1 }),
   named('darkgreen', 'Тёмно-зелёный', { yellow: 1, blue: 1, black: 1 }),
-  named('carrot', 'Морковный', { red: 2, yellow: 1 }),
 ];
 
 export const ALL_COLORS = [...BASIC_COLORS, ...MIX_COLORS];
