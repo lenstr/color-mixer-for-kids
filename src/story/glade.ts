@@ -1,13 +1,12 @@
 // The hedgehog's glade, which Кляксын drained of its colors: a coloring
 // page painted in the task mode, without hints, to win the gold paint.
 
-import { type Picture, SKY, circle, dot, ellipse, gloss, grass, line, rays, rect } from '../coloring/pictures';
-
-const r1 = (v: number) => Math.round(v * 10) / 10;
+import { type Picture, SKY, circle, dot, ellipse, gloss, grass, line, n, rays, rect } from '../coloring/pictures';
+import { hedgehogPaths } from './characters';
 
 /** A cloud: a flat bottom with three bumps on top. */
 function cloud(cx: number, cy: number, s = 1) {
-  const p = (x: number, y: number) => `${r1(cx + x * s)} ${r1(cy + y * s)}`;
+  const p = (x: number, y: number) => `${n(cx + x * s)} ${n(cy + y * s)}`;
   return `M${p(-50, 18)}A${20 * s} ${20 * s} 0 0 1 ${p(-34, -10)}A${26 * s} ${26 * s} 0 0 1 ${p(12, -20)}A${22 * s} ${22 * s} 0 0 1 ${p(48, 4)}A${14 * s} ${14 * s} 0 0 1 ${p(44, 18)}Z`;
 }
 
@@ -16,25 +15,15 @@ function flower(cx: number, cy: number, R: number, k = 5) {
   const r0 = R * 0.6;
   const pt = (i: number) => {
     const a = ((i * 360) / k - 90) * (Math.PI / 180);
-    return `${r1(cx + Math.cos(a) * r0)} ${r1(cy + Math.sin(a) * r0)}`;
+    return `${n(cx + Math.cos(a) * r0)} ${n(cy + Math.sin(a) * r0)}`;
   };
   let d = `M${pt(0)}`;
-  for (let i = 1; i <= k; i++) d += `A${r1(R * 0.42)} ${r1(R * 0.42)} 0 1 1 ${pt(i)}`;
+  for (let i = 1; i <= k; i++) d += `A${n(R * 0.42)} ${n(R * 0.42)} 0 1 1 ${pt(i)}`;
   return d + 'Z';
 }
 
 /** The hedgehog of the story, half size, standing on the grass. */
-const at = (x: number, y: number) => `${r1(150 + x * 0.5)} ${r1(232 + y * 0.5)}`;
-function hedgehogBack() {
-  const pts: string[] = [];
-  for (let i = 0; i <= 18; i++) {
-    const a = ((180 + (155 * i) / 18) * Math.PI) / 180;
-    const r = i % 2 ? 104 : 80;
-    pts.push(at(118 + Math.cos(a) * r, 150 + Math.sin(a) * r));
-  }
-  return `M${pts[0]}L${pts.slice(1).join('L')}Q${at(150, 150)} ${at(118, 168)}Q${at(60, 176)} ${pts[0]}Z`;
-}
-const hedgehogBody = `M${at(30, 160)}C${at(30, 112)} ${at(80, 92)} ${at(140, 96)}C${at(200, 100)} ${at(244, 128)} ${at(252, 154)}C${at(244, 184)} ${at(198, 206)} ${at(140, 206)}C${at(80, 206)} ${at(30, 196)} ${at(30, 160)}Z`;
+const hedgehog = hedgehogPaths((x, y) => `${n(150 + x * 0.5)} ${n(232 + y * 0.5)}`);
 
 export const GLADE: Picture = {
   id: 'glade',
@@ -52,8 +41,8 @@ export const GLADE: Picture = {
     { id: 'apple1', target: 'red', d: circle(52, 146, 10), clip: 'crown' },
     { id: 'apple2', target: 'red', d: circle(100, 178, 10), clip: 'crown' },
     { id: 'apple3', target: 'red', d: circle(90, 124, 9), clip: 'crown' },
-    { id: 'hedgehog', target: 'peach', d: hedgehogBody },
-    { id: 'spikes', target: 'brown', d: hedgehogBack() },
+    { id: 'hedgehog', target: 'peach', d: hedgehog.body },
+    { id: 'spikes', target: 'brown', d: hedgehog.back },
     { id: 'petals1', target: 'pink', d: flower(54, 352, 26) },
     { id: 'middle1', target: 'yellow', d: circle(54, 352, 8) },
     { id: 'petals2', target: 'purple', d: flower(126, 374, 22) },

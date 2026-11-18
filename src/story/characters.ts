@@ -1,6 +1,8 @@
 // The story's characters, drawn in the game's ink-outlined style: Кляксын,
 // the villain who steals the colors, and the hedgehog who asks for help.
 
+import { n } from '../coloring/pictures';
+
 const INK = '#2B2340';
 
 /** Кляксын: an inky blob with angry brows, a toothy grin and drips. */
@@ -24,26 +26,36 @@ export function villainSVG() {
 
 /** Points of a spiky back: alternating long and short spikes along an arc. */
 function spikes(cx: number, cy: number, from: number, to: number, count: number, outer: number, inner: number) {
-  const pts: string[] = [];
+  const pts: [number, number][] = [];
   for (let i = 0; i <= count * 2; i++) {
     const a = ((from + ((to - from) * i) / (count * 2)) * Math.PI) / 180;
     const r = i % 2 ? outer : inner;
-    pts.push(`${(cx + Math.cos(a) * r).toFixed(1)} ${(cy + Math.sin(a) * r).toFixed(1)}`);
+    pts.push([cx + Math.cos(a) * r, cy + Math.sin(a) * r]);
   }
   return pts;
 }
 
+/**
+ * The hedgehog's body and spiky back as path data. Each point goes through
+ * `at`, which writes it; the glade passes one that moves and shrinks him.
+ */
+export function hedgehogPaths(at = (x: number, y: number) => `${n(x)} ${n(y)}`) {
+  const back = spikes(118, 150, 180, 335, 9, 104, 80).map(([x, y]) => at(x, y));
+  return {
+    body: `M${at(30, 160)}C${at(30, 112)} ${at(80, 92)} ${at(140, 96)}C${at(200, 100)} ${at(244, 128)} ${at(252, 154)}C${at(244, 184)} ${at(198, 206)} ${at(140, 206)}C${at(80, 206)} ${at(30, 196)} ${at(30, 160)}Z`,
+    back: `M${back[0]}L${back.slice(1).join('L')}Q${at(150, 150)} ${at(118, 168)}Q${at(60, 176)} ${back[0]}Z`,
+  };
+}
+
 /** The hedgehog, facing right, with an apple on its spikes. */
 export function hedgehogSVG() {
-  const back = spikes(118, 150, 180, 335, 9, 104, 80);
-  const backPath = `M${back[0]}L${back.slice(1).join('L')}Q150 150 118 168Q60 176 ${back[0]}Z`;
+  const { body, back } = hedgehogPaths();
   return `<svg viewBox="0 0 270 230" class="story-svg" aria-hidden="true">
     <ellipse cx="140" cy="220" rx="96" ry="8" fill="${INK}" opacity=".16"/>
     <ellipse cx="106" cy="208" rx="18" ry="11" fill="#F6C9A0" stroke="${INK}" stroke-width="5"/>
     <ellipse cx="170" cy="208" rx="18" ry="11" fill="#F6C9A0" stroke="${INK}" stroke-width="5"/>
-    <path d="M30 160C30 112 80 92 140 96C200 100 244 128 252 154C244 184 198 206 140 206C80 206 30 196 30 160Z"
-      fill="#F6C9A0" stroke="${INK}" stroke-width="6" stroke-linejoin="round"/>
-    <path d="${backPath}" fill="#8A5A3B" stroke="${INK}" stroke-width="6" stroke-linejoin="round"/>
+    <path d="${body}" fill="#F6C9A0" stroke="${INK}" stroke-width="6" stroke-linejoin="round"/>
+    <path d="${back}" fill="#8A5A3B" stroke="${INK}" stroke-width="6" stroke-linejoin="round"/>
     <path d="M70 122l14 -18M104 108l8 -22M140 106l2 -22M60 150l-16 -8" stroke="#5E3B24" stroke-width="5" stroke-linecap="round"/>
     <circle cx="96" cy="58" r="20" fill="#E8273F" stroke="${INK}" stroke-width="5"/>
     <path d="M96 38c2 -8 8 -12 16 -12c-2 8 -8 12 -16 12z" fill="#2BAE4C" stroke="${INK}" stroke-width="4" stroke-linejoin="round"/>

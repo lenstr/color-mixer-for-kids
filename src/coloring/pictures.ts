@@ -23,6 +23,7 @@ export interface Picture {
 
 // ---------- shape helpers ----------
 
+/** A coordinate rounded to 0.1, short in path data. */
 const n = (v: number) => Math.round(v * 10) / 10;
 
 function circle(cx: number, cy: number, r: number) {
@@ -301,4 +302,4 @@ export const PICTURES: Picture[] = [apple, mushroom, carrot, flower, fish, house
 export const PICTURE_BY_ID = Object.fromEntries(PICTURES.map((p) => [p.id, p])) as Record<string, Picture>;
 
 /** Shape and decoration helpers, for pictures drawn elsewhere (the story's glade). */
-export { SKY, circle, dot, ellipse, gloss, grass, line, rays, rect };
+export { SKY, circle, dot, ellipse, gloss, grass, line, n, rays, rect };
