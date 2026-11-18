@@ -1934,14 +1934,46 @@ label.parent-row { cursor: pointer; }
 .menu-catch { --icon-bg: var(--purple); }
 .menu-catch .menu-icon { color: #fff; }
 .menu-btn:nth-child(5) { animation-delay: 0.95s; }
-/* five menu buttons: two by two with the last one centered below, or three
-   over two on wide screens */
-@media (min-width: 900px) and (max-width: 1239px) {
-  .menu-catch { grid-column: 1 / -1; justify-self: center; }
+/* five menu buttons: three over two on wide screens */
+@media (min-width: 900px) and (min-height: 561px) {
+  .home-menu { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); width: min(1080px, 100%); }
+  .menu-btn { grid-column: span 2; min-width: 0; }
+  .menu-btn:nth-child(4) { grid-column: 2 / span 2; }
 }
-@media (min-width: 1240px) {
-  .home-menu { display: flex; flex-wrap: wrap; justify-content: center; max-width: 1080px; }
-  .menu-btn { flex: 0 1 320px; }
+/* the home screen scrolls rather than cuts the menu off where it does not
+   fit, but first gives up room where it can */
+.home { overflow-y: auto; justify-content: safe center; }
+@media (orientation: portrait) and (max-width: 1100px), (max-width: 560px) {
+  /* the blob takes what the menu leaves, down to a small one */
+  .home-hero { display: contents; }
+  .tagline { margin-top: max(-4px, 6px - clamp(10px, 2.4dvh, 26px)); }
+  .home-stage { width: 100%; }
+  .home-stage {
+    flex: 0 1 calc(clamp(200px, min(36dvh, 40vw), 380px) * 0.84);
+    min-height: 96px;
+    container-type: size;
+  }
+  .home-blob { width: min(clamp(200px, min(36dvh, 40vw), 380px), 100cqh * 1.19); }
+  /* room for the sound button and the quests button above the logo */
+  .home:has(> .quest-btn:not([hidden])) { padding-top: 92px; }
+}
+@media (orientation: portrait) and (max-width: 560px) {
+  .home, .home:has(> .quest-btn:not([hidden])) { padding-top: 76px; }
+}
+@media (orientation: portrait) and (max-width: 1100px) and (max-height: 960px),
+  (max-width: 560px) and (max-height: 960px) {
+  .home { gap: 10px; }
+  .home-menu { gap: 12px; }
+  .menu-btn { padding: 8px 18px 8px 8px; border-radius: 24px; box-shadow: 0 6px 0 var(--ink); }
+  .menu-icon { width: 46px; height: 46px; border-radius: 16px; }
+  .menu-icon svg { width: 26px; height: 26px; }
+  .menu-text b { font-size: 20px; }
+}
+@media (orientation: portrait) and (max-height: 700px) {
+  .tagline, .menu-text small { display: none; }
+  .home-menu { gap: 10px; }
+  .menu-btn { padding: 6px 16px 6px 6px; }
+  .menu-icon { width: 42px; height: 42px; }
 }
 
 .catch-card {
@@ -2294,6 +2326,4 @@ label.parent-row { cursor: pointer; }
 }
 @media (max-width: 560px) {
   .quest-btn { top: max(12px, env(safe-area-inset-top)); }
-  /* room for the quests button above the logo */
-  .home:has(> .quest-btn:not([hidden])) { padding-top: 70px; }
 }
