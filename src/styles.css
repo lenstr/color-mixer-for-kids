@@ -1942,16 +1942,53 @@ label.parent-row { cursor: pointer; }
   .menu-btn { flex: 0 1 320px; }
 }
 
+.catch-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 16px;
+  width: min(560px, 100%);
+  margin: 8px auto 0;
+  padding: 14px 20px 14px 16px;
+  rotate: -0.8deg;
+  box-shadow: 7px 8px 0 var(--ink);
+}
+.catch-target {
+  width: 66px;
+  aspect-ratio: 1;
+  filter: drop-shadow(3px 4px 0 var(--ink));
+  animation: wobble 4s ease-in-out infinite;
+}
+.catch-target .swatch { width: 100%; height: 100%; }
+.catch-kicker { text-align: left; font-size: 12px; }
+.catch-name {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 22px;
+  line-height: 1.15;
+}
+.catch-recipe { display: flex; flex-wrap: wrap; gap: 1px; margin-top: 4px; min-height: 30px; }
+.catch-pip svg { display: block; width: 24px; height: 30px; }
+.catch-pip:not(.is-on) { opacity: 0.25; }
+.catch-pip.is-on { animation: pop 0.35s var(--bounce); }
+.catch-score { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.catch-score b {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 30px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.catch-score b.is-bump { animation: pop 0.35s var(--bounce); }
+.catch-lives { display: flex; gap: 2px; }
+.catch-lives svg { width: 24px; height: 24px; }
+.catch-lives svg.is-lost { opacity: 0.35; }
+
 .catch-stage {
   position: relative;
   flex: 1;
   min-height: 0;
-  margin-top: 10px;
-  border: var(--line) solid var(--ink);
-  border-radius: var(--radius);
-  background: #fffbf3;
-  box-shadow: var(--lift);
-  overflow: hidden;
+  margin-top: 6px;
 }
 .catch-canvas {
   position: absolute;
@@ -1961,30 +1998,77 @@ label.parent-row { cursor: pointer; }
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
-  cursor: pointer;
 }
-.catch-pour {
+.catch-blob {
   position: absolute;
-  right: 12px;
-  bottom: 12px;
-  height: 50px;
-  padding: 0 18px;
-  font-size: 16px;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  will-change: transform;
 }
-.catch-pour svg { width: 22px; height: 22px; }
+.catch-pour { position: absolute; right: 0; bottom: 54px; }
+
+.catch-modal { align-items: center; gap: 4px; padding: 30px 28px 26px; text-align: center; }
+.catch-title { font-size: clamp(34px, 8vw, 46px); }
+.catch-rules {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 18px 0 8px;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+.catch-rules li { display: flex; align-items: center; gap: 14px; }
+.catch-rules svg { flex: none; width: 36px; height: 40px; }
+.catch-rules li:last-child svg { padding: 3px; stroke-width: 2.6; }
+.catch-best { margin: 2px 0; font-size: 17px; color: var(--ink-2); }
+.catch-best b, .catch-modal .win-sub b {
+  font-family: var(--display);
+  color: var(--ink);
+  background: linear-gradient(var(--c, var(--yellow)), var(--c, var(--yellow))) 0 90% / 100% 0.4em no-repeat;
+  padding: 0 3px;
+}
 
 @media (max-width: 560px) {
-  .catch-stage { margin-top: 6px; border-radius: 20px; }
-  .catch-pour { height: 44px; padding: 0 14px; font-size: 14px; right: 8px; bottom: 8px; }
+  .catch-card { gap: 10px; padding: 10px 14px 10px 10px; margin-top: 4px; box-shadow: 5px 6px 0 var(--ink); }
+  .catch-card::before { width: 70px; height: 22px; top: -12px; }
+  .catch-target { width: 50px; }
+  .catch-name { font-size: 18px; }
+  .catch-pip svg { width: 19px; height: 24px; }
+  .catch-score b { font-size: 24px; }
+  .catch-lives svg { width: 19px; height: 19px; }
+  .catch-pour { bottom: 50px; }
+  .catch-pour svg { width: 50px; height: 50px; padding: 11px; }
+  .catch-rules { font-size: 15px; }
 }
 @media (max-height: 560px) and (orientation: landscape) {
   .home-menu { grid-template-columns: repeat(5, auto); gap: 8px; }
   .menu-catch { grid-column: auto; }
+  /* the card stands beside the game, which needs all the height */
+  .catch {
+    display: grid;
+    grid-template-columns: clamp(170px, 26vw, 230px) minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    column-gap: 16px;
+  }
+  .catch .topbar { grid-column: 1 / -1; }
+  .catch-card { grid-template-columns: auto 1fr; align-self: start; width: 100%; margin-top: 18px; gap: 10px; padding: 12px; }
+  .catch-target { width: 46px; }
+  .catch-name { font-size: 16px; }
+  .catch-goal { display: contents; }
+  .catch-kicker { display: none; }
+  .catch-recipe, .catch-score { grid-column: 1 / -1; }
+  .catch-score { flex-direction: row; justify-content: space-between; align-items: center; }
+  .catch-pip svg { width: 18px; height: 23px; }
+  .catch-stage { margin-top: 0; }
   .menu-btn { gap: 6px; padding: 5px 10px 5px 5px; }
   .menu-icon { width: 36px; height: 36px; border-radius: 13px; }
   .menu-icon svg { width: 20px; height: 20px; }
   .menu-text b { font-size: 13px; white-space: nowrap; }
-  .catch-stage { margin-top: 4px; }
 }
 @media (max-height: 560px) and (orientation: landscape) and (max-width: 900px) {
   .menu-icon { display: none; }

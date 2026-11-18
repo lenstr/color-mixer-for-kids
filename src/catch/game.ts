@@ -1,12 +1,16 @@
 // «Поймай цвет»: paint drops fall from white clouds, Клякса catches them in a
-// bucket held over its head, and the bucket mixes them like the mixer does.
+// bucket balanced on its head, and the bucket mixes them like the mixer does.
 // The bucket must reach the target's recipe × MULT exactly: a drop that does
-// not fit (or mud) spoils the bucket and costs a life. The game draws itself
-// on a 2D canvas and reports what happens through `on`; the screen around it
-// plays the sounds and voice and keeps the record.
+// not fit (or mud) spoils the bucket and costs a life.
+//
+// The game draws the sky, the drops, the bucket and the shelf on a
+// transparent 2D canvas in the same ink-outlined style as the rest of the
+// game. Клякса itself is the real WebGL blob, which the screen places under
+// the bucket from `frame`; the screen also shows the HUD and dialogs and
+// turns `on` events into sounds and voice.
 
-import { type Drops, type Pigment, PIGMENTS, emptyDrops, mixHex, totalDrops } from '../color';
-import { COLOR_BY_ID, MIX_COLORS, type NamedColor, PAINT_BY_ID, colorLabel } from '../data';
+import { type Drops, type Pigment, PIGMENTS, emptyDrops, mixHex, shade, totalDrops } from '../color';
+import { COLOR_BY_ID, MIX_COLORS, type NamedColor } from '../data';
 
 // The drops that fall, all of them on every level. A mixed drop pours its
 // whole recipe into the bucket: a green one is one yellow and one blue.
@@ -34,7 +38,7 @@ const MUD = 0.12; // share of mud drops
 const HELP = 0.15; // extra chance that a drop is one the bucket can still take
 const BUCKET = 0.2; // bucket width, share of the playfield
 const BUCKET_SPEED = 1.8; // playfield widths per second
-const MULT = 2; // the bucket holds the recipe × MULT
+export const MULT = 2; // the bucket holds the recipe × MULT
 export const LIVES = 3;
 const CLOUDS = 4;
 const TREMBLE = 0.35; // seconds a cloud shakes before it lets a drop go
@@ -42,9 +46,13 @@ const WON_PAUSE = 1.6; // seconds between a full bucket and the next color
 const MOUSE_EVERY = 40; // seconds between visits of the mouse with the mop
 
 const MUD_HEX = '#6B4A2B';
-const BLOB = '#9B6BF2';
 const INK = '#2B2340';
-const FONT = 'Nunito, system-ui, sans-serif';
+const CARD = '#FFFDF7';
+const DISPLAY = 'Unbounded, "Arial Black", system-ui, sans-serif';
+/** The drop of jar.ts dropSVG: 30 wide, its round part centered at (0, 7). */
+const DROP_PATH = new Path2D('M0 -22 C7 -11 15 -2 15 7 A15 15 0 0 1 -15 7 C-15 -2 -7 -11 0 -22 Z');
+/** Клякса's body is 208 of the blob's 300 units wide and 182 tall above the floor. */
+const BODY_HEIGHT = 182 / 208;
 
 /** Can the drops add up to exactly this recipe × MULT? Gray needs pure white, so no. */
 function reachable(c: NamedColor) {
@@ -67,26 +75,46 @@ function reachable(c: NamedColor) {
 /** The colors to catch, in the mixer's level order. */
 export const TARGETS = MIX_COLORS.filter(reachable);
 
+export interface Hud {
+  level: number;
+  target: NamedColor;
+  bucket: Drops;
+  score: number;
+  lives: number;
+}
+
 export type CatchEvent =
   | { type: 'level'; target: NamedColor; first: boolean }
-  | { type: 'catch'; combo: number }
+  | { type: 'catch'; hex: string; combo: number }
   | { type: 'spoil'; why: 'mud' | 'extra'; over: boolean }
   | { type: 'pour' }
   | { type: 'win'; target: NamedColor; next: NamedColor }
-  | { type: 'over'; score: number }
-  | { type: 'mouse' };
+  | { type: 'over'; score: number; level: number }
+  | { type: 'mouse' }
+  | { type: 'hud'; hud: Hud };
+
+/** Where Клякса stands, in canvas CSS pixels. */
+export interface Player {
+  x: number;
+  groundY: number;
+  /** body width; the bucket on its head is as wide */
+  width: number;
+  /** the drop it watches, if any */
+  look: { x: number; y: number } | null;
+  /** right end of the shelf */
+  shelfRight: number;
+}
 
 export interface CatchOptions {
   on(e: CatchEvent): void;
-  /** the best score so far, read when the game ends */
-  best(): number;
-  /** no screen shake */
+  frame(p: Player): void;
+  /** no shaking */
   calm: boolean;
 }
 
 interface Drop { kind: Kind; x: number; y: number; r: number; wob: number }
 interface Cloud { slot: number; x: number; release: number; next: Kind | null }
-interface Splat { x: number; y: number; r: number; hex: string; seed: number }
+interface Splat { x: number; r: number; hex: string; seed: number }
 interface Particle { x: number; y: number; vx: number; vy: number; hex: string; t: number; r: number }
 interface Float { x: number; y: number; text: string; hex: string; t: number; big: boolean }
 
@@ -100,7 +128,6 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
   let paused = false;
   let level = 1;
   let score = 0;
-  let record = false;
   let lives = LIVES;
   let combo = 0;
   let target = TARGETS[0];
@@ -119,7 +146,8 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
   let shakeT = 0;
   let belt = 0; // cloud belt offset, wraps at 1
   let mouseT = 0;
-  let mouse: { x: number; dir: 1 | -1 } | null = null;
+  let mouse: { x: number; dir: 1 | -1 } | null = null; // x: share of the shelf
+  let slosh = 0; // the paint sways after a catch
 
   const goal = (p: Pigment) => target.recipe[p] * MULT;
   const capacity = () => totalDrops(target.recipe) * MULT;
@@ -127,6 +155,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
   /** The drop still fits the recipe: no paint goes over its share. */
   const fits = (k: Paint) => PIGMENTS.every((p) => bucket[p] + k.recipe[p] <= goal(p));
   const targetFor = (lv: number) => TARGETS[lv - 1] ?? any(TARGETS);
+  const hud = () => opts.on({ type: 'hud', hud: { level, target, bucket: { ...bucket }, score, lives } });
 
   // ---------- layout ----------
   let W = 0, H = 0, PW = 0, OX = 0, dpr = 1;
@@ -139,16 +168,17 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     PW = Math.min(W, H * 0.95);
     OX = (W - PW) / 2;
   }
+  const PLANK = 30;
   const L = () => {
-    const cloudY = 104;
-    const groundY = H - Math.max(36, H * 0.07);
-    const bw = Math.max(70, BUCKET * PW);
-    // Клякса stands on the floor and holds the bucket over its head
-    const bodyH = bw * 0.72;
-    const bh = bw * 0.55;
-    const bTop = groundY - bodyH - bw * 0.12 - bh;
-    const dropR = Math.max(9, Math.min(20, PW * 0.026));
-    return { cloudY, groundY, bw, bh, bTop, bodyH, dropR };
+    const cloudY = Math.max(40, Math.min(56, PW * 0.1));
+    const groundY = H - PLANK - 10;
+    const bw = Math.max(64, BUCKET * PW);
+    // the bucket stands on Клякса's head
+    const bh = bw * 0.62;
+    const bBot = groundY - bw * BODY_HEIGHT + 3;
+    const bTop = bBot - bh;
+    const dropR = Math.max(10, Math.min(19, PW * 0.03));
+    return { cloudY, groundY, bw, bh, bTop, bBot, dropR };
   };
 
   // ---------- rules ----------
@@ -156,14 +186,14 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     target = targetFor(level);
     bucket = emptyDrops();
     drops = [];
-    clouds = Array.from({ length: CLOUDS }, (_, i) => ({ slot: i / CLOUDS, x: 0, release: 0, next: null }));
+    clouds = Array.from({ length: CLOUDS }, (_, i) => ({ slot: i / CLOUDS, x: i / CLOUDS, release: 0, next: null }));
     spawnT = -0.6;
   }
+  setupLevel();
 
   function start() {
     level = 1;
     score = 0;
-    record = false;
     lives = LIVES;
     combo = 0;
     splats = [];
@@ -177,6 +207,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     phaseT = 0;
     paused = false;
     opts.on({ type: 'level', target, first: true });
+    hud();
   }
 
   function pickKind(): Kind {
@@ -205,15 +236,15 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     lives--;
     combo = 0;
     if (!opts.calm) shakeT = 0.3;
-    label(text, '#D7263D', bx, bTop - 30, true);
+    label(text, '#E8273F', bx, bTop - 34, true);
     const over = lives <= 0;
     opts.on({ type: 'spoil', why, over });
+    hud();
     if (over) {
-      record = score > opts.best();
       phase = 'over';
       phaseT = 0;
       drops = [];
-      opts.on({ type: 'over', score });
+      opts.on({ type: 'over', score, level });
     }
   }
 
@@ -223,27 +254,29 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     burst(OX + bx * PW, bTop, mixHex(bucket)!, 10, 0.7);
     bucket = emptyDrops();
     combo = 0;
-    label('Вылили', INK, bx, bTop - 30);
+    label('Вылили', CARD, bx, bTop - 34);
     opts.on({ type: 'pour' });
+    hud();
   }
 
   function onCatch(d: Drop) {
     if (d.kind === 'mud') return spoil('mud', 'Грязь!');
     const k = d.kind;
-    if (!fits(k)) {
-      for (const p of PIGMENTS) bucket[p] += k.recipe[p];
-      return spoil('extra', `Лишняя ${k.name.toLowerCase()}!`);
-    }
     for (const p of PIGMENTS) bucket[p] += k.recipe[p];
+    // the drop is counted in, so a spoiled bucket splashes its color
+    if (totalDrops(bucket) > capacity() || PIGMENTS.some((p) => bucket[p] > goal(p)))
+      return spoil('extra', `Лишняя ${k.name.toLowerCase()}!`);
     const { bTop } = L();
     burst(OX + d.x * PW, bTop, k.hex, 5, 0.5);
+    slosh = 1;
     combo++;
     const pts = 10 * Math.min(combo, 5);
     score += pts;
-    label(combo > 1 ? `+${pts} ×${Math.min(combo, 5)}` : `+${pts}`, INK, d.x, bTop - 20);
-    opts.on({ type: 'catch', combo });
+    label(combo > 1 ? `+${pts} ×${Math.min(combo, 5)}` : `+${pts}`, '#FFD21F', d.x, bTop - 22);
+    opts.on({ type: 'catch', hex: k.hex, combo });
     // only fitting drops get in, so a full bucket is exactly the recipe
     if (totalDrops(bucket) >= capacity()) win();
+    hud();
   }
 
   function win() {
@@ -251,7 +284,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     score += bonus;
     const { bTop } = L();
     burst(OX + bx * PW, bTop, target.hex, 30, 1.6);
-    label(`${target.name}! +${bonus}`, target.hex, 0.5, H * 0.42, true);
+    label(`+${bonus}`, '#FFD21F', bx, bTop - 60, true);
     phase = 'won';
     phaseT = 0;
     drops = [];
@@ -262,6 +295,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
   function update(dt: number) {
     time += dt;
     phaseT += dt;
+    slosh = Math.max(0, slosh - dt * 1.5);
     const { cloudY, groundY, bw, bTop } = L();
 
     for (const q of parts) {
@@ -270,8 +304,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
       q.x += q.vx * dt;
       q.y += q.vy * dt;
       if (q.y > groundY) {
-        if (Math.random() < 0.3)
-          splats.push({ x: (q.x - OX) / PW, y: groundY + rand(2, 14), r: q.r * 1.3, hex: q.hex, seed: Math.random() });
+        if (Math.random() < 0.3) splats.push({ x: (q.x - OX) / PW, r: q.r * 1.3, hex: q.hex, seed: Math.random() });
         q.t = 99;
       }
     }
@@ -281,27 +314,33 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     shakeT = Math.max(0, shakeT - dt);
     if (splats.length > 160) splats.splice(0, splats.length - 160);
 
+    // the cloud belt mostly drifts one way and now and then turns back
+    belt = (belt + dt * (0.05 * Math.sin(time * 0.23) + 0.025) + 1) % 1;
+    for (const c of clouds) c.x = (c.slot + belt) % 1;
+
     if (phase === 'won' && phaseT > WON_PAUSE) {
       level++;
       setupLevel();
       phase = 'play';
       opts.on({ type: 'level', target, first: false });
+      hud();
     }
     if (phase === 'play' || phase === 'won') {
-      // every now and then a little mouse runs along the floor and mops up the splats
+      // every now and then a little mouse runs along the shelf and mops up the splats
       mouseT += dt;
       if (!mouse && mouseT >= MOUSE_EVERY) {
         mouseT = 0;
         const dir = Math.random() < 0.5 ? 1 : -1;
-        mouse = { x: dir === 1 ? -0.12 : 1.12, dir };
+        mouse = { x: dir === 1 ? -0.1 : 1.1, dir };
         opts.on({ type: 'mouse' });
       }
       if (mouse) {
         const m = mouse;
-        m.x += m.dir * 0.33 * dt;
-        const mop = m.x + m.dir * 0.07;
+        m.x += m.dir * 0.3 * dt; // share of the shelf per second
+        const [x0, x1] = shelfEnds();
+        const mop = (x0 + m.x * (x1 - x0) + m.dir * Math.max(14, PW * 0.035) * 2 - OX) / PW;
         splats = splats.filter((s) => (m.dir === 1 ? s.x > mop : s.x < mop));
-        if (m.x < -0.15 || m.x > 1.15) mouse = null;
+        if (m.x < -0.12 || m.x > 1.12) mouse = null;
       }
     }
     if (phase !== 'play') return;
@@ -315,16 +354,13 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     const step = BUCKET_SPEED * dt;
     bx += Math.max(-step, Math.min(step, want - bx));
 
-    // the cloud belt mostly drifts one way and now and then turns back
-    belt = (belt + dt * (0.05 * Math.sin(time * 0.23) + 0.025) + 1) % 1;
     for (const c of clouds) {
-      c.x = (c.slot + belt) % 1;
       if (!c.release) continue;
       c.release -= dt;
       if (c.release > 0) continue;
       c.release = 0;
       const x = Math.max(0.06, Math.min(0.94, c.x));
-      drops.push({ kind: c.next!, x, y: cloudY + 22, r: L().dropR, wob: rand(0, 6) });
+      drops.push({ kind: c.next!, x, y: cloudY + 30, r: L().dropR, wob: rand(0, 6) });
     }
     spawnT += dt;
     if (spawnT >= SPAWN * Math.max(0.35, 1 - SPAWN_GROWTH * (level - 1))) {
@@ -347,7 +383,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
         if (phase !== 'play') return;
       } else if (d.y >= groundY) {
         d.y = Infinity;
-        splats.push({ x: d.x, y: groundY + rand(4, 16), r: d.r * 1.6, hex: kindHex(d.kind), seed: Math.random() });
+        splats.push({ x: d.x, r: d.r * 1.6, hex: kindHex(d.kind), seed: Math.random() });
         if (d.kind !== 'mud' && fits(d.kind)) combo = 0;
       }
     }
@@ -355,13 +391,13 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
   }
 
   // ---------- drawing ----------
-  function teardrop(x: number, y: number, r: number) {
-    ctx.beginPath();
-    ctx.moveTo(x, y - r * 2.1);
-    ctx.quadraticCurveTo(x + r * 1.1, y - r * 0.6, x + r, y);
-    ctx.arc(x, y, r, 0, Math.PI);
-    ctx.quadraticCurveTo(x - r * 1.1, y - r * 0.6, x, y - r * 2.1);
-    ctx.closePath();
+  function inkShadow(draw: () => void, dx: number, dy: number) {
+    ctx.save();
+    ctx.translate(dx, dy);
+    ctx.fillStyle = INK;
+    draw();
+    ctx.fill();
+    ctx.restore();
   }
 
   function wobbly(x: number, y: number, rx: number, ry: number, k: (a: number) => number, steps = 40) {
@@ -374,105 +410,175 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     ctx.closePath();
   }
 
+  /** A paint drop like the ones on the jars, its round part centered at (x, y). */
+  function paintDrop(x: number, y: number, r: number, hex: string) {
+    const s = r / 15;
+    ctx.save();
+    ctx.translate(x, y - 7 * s);
+    ctx.scale(s, s);
+    ctx.fillStyle = hex;
+    ctx.fill(DROP_PATH);
+    ctx.lineWidth = 3.6;
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = INK;
+    ctx.stroke(DROP_PATH);
+    ctx.fillStyle = 'rgba(255,255,255,.65)';
+    ctx.beginPath();
+    ctx.ellipse(-6, 4, 3.2, 5.5, (20 * Math.PI) / 180, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
   function drawDrop(d: Drop) {
     const x = OX + d.x * PW + Math.sin(time * 6 + d.wob) * 1.5;
-    ctx.lineWidth = 3;
+    if (d.kind !== 'mud') return paintDrop(x, d.y, d.r, d.kind.hex);
+    const r = d.r * 1.15;
+    const shape = () => wobbly(x, d.y, r, r, (a) => 1 + 0.16 * Math.sin(a * 5 + d.wob + time * 4), 24);
+    shape();
+    ctx.fillStyle = MUD_HEX;
+    ctx.fill();
+    ctx.lineWidth = 3.5;
     ctx.strokeStyle = INK;
-    if (d.kind === 'mud') {
-      const r = d.r * 1.15;
-      wobbly(x, d.y, r, r, (a) => 1 + 0.16 * Math.sin(a * 5 + d.wob + time * 4), 24);
-      ctx.fillStyle = MUD_HEX;
-      ctx.fill();
-      ctx.stroke();
-      // grumpy cross eyes
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = 2.2;
-      ctx.beginPath();
-      for (const s of [-1, 1]) {
-        const ex = x + s * d.r * 0.55;
-        ctx.moveTo(ex - 3, d.y - 4);
-        ctx.lineTo(ex + 3, d.y + 2);
-        ctx.moveTo(ex + 3, d.y - 4);
-        ctx.lineTo(ex - 3, d.y + 2);
-      }
-      ctx.stroke();
-      return;
-    }
-    teardrop(x, d.y, d.r);
-    ctx.fillStyle = d.kind.hex;
-    ctx.fill();
     ctx.stroke();
-    ctx.fillStyle = 'rgba(255,255,255,.75)';
+    // grumpy cross eyes
+    ctx.strokeStyle = CARD;
+    ctx.lineWidth = 2.4;
+    ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.ellipse(x - d.r * 0.35, d.y - d.r * 0.2, d.r * 0.22, d.r * 0.35, -0.4, 0, Math.PI * 2);
-    ctx.fill();
+    for (const s of [-1, 1]) {
+      const ex = x + s * d.r * 0.5;
+      ctx.moveTo(ex - 3, d.y - 4);
+      ctx.lineTo(ex + 3, d.y + 2);
+      ctx.moveTo(ex + 3, d.y - 4);
+      ctx.lineTo(ex - 3, d.y + 2);
+    }
+    ctx.stroke();
+    ctx.lineCap = 'butt';
   }
 
   function drawCloud(c: Cloud, y: number, shift: number) {
-    const x = OX + (c.x + shift) * PW + (c.release ? Math.sin(time * 70) * 2.5 : 0);
-    if (x < OX - PW * 0.15 || x > OX + PW * 1.15) return;
-    const s = Math.max(16, PW * 0.04);
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = INK;
+    const at = c.x + shift;
+    if (at < -0.12 || at > 1.12) return;
+    const x = OX + at * PW + (c.release ? Math.sin(time * 70) * 2.5 : 0);
+    // clouds shrink away and grow back at the sides of the playfield
+    const grow = Math.max(0, Math.min(1, (at + 0.12) / 0.16, (1.12 - at) / 0.16));
+    if (grow < 0.05) return;
+    const s = Math.max(15, Math.min(24, PW * 0.042)) * grow;
     // the coming drop swells under the cloud while it trembles
     if (c.release && c.next) {
       const r = L().dropR * (0.35 + 0.65 * (1 - c.release / TREMBLE));
-      ctx.fillStyle = kindHex(c.next);
-      teardrop(x, y + s * 0.55 + r * 1.2, r);
-      ctx.fill();
-      ctx.stroke();
+      if (c.next === 'mud') {
+        ctx.fillStyle = MUD_HEX;
+        ctx.strokeStyle = INK;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(x, y + s * 0.6 + r, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      } else paintDrop(x, y + s * 0.55 + r * 1.1, r, c.next.hex);
     }
-    ctx.fillStyle = '#FFFFFF';
-    ctx.beginPath();
-    ctx.arc(x - s * 0.9, y + s * 0.15, s * 0.7, 0, Math.PI * 2);
-    ctx.arc(x, y - s * 0.25, s, 0, Math.PI * 2);
-    ctx.arc(x + s * 0.9, y + s * 0.15, s * 0.7, 0, Math.PI * 2);
-    // stroke, then fill over it, so the arcs inside vanish
-    ctx.stroke();
-    ctx.fill();
-    ctx.fillStyle = '#E9E4F0';
-    ctx.beginPath();
-    ctx.ellipse(x, y + s * 0.45, s * 1.35, s * 0.32, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = INK;
-    for (const e of [-0.32, 0.32]) {
+    const puff = () => {
       ctx.beginPath();
-      ctx.arc(x + e * s, y - s * 0.15 + 1, s * 0.11, 0, Math.PI * 2);
+      ctx.arc(x - s * 0.95, y + s * 0.2, s * 0.7, 0, Math.PI * 2);
+      ctx.arc(x - s * 0.15, y - s * 0.3, s * 0.95, 0, Math.PI * 2);
+      ctx.arc(x + s * 0.8, y + s * 0.05, s * 0.8, 0, Math.PI * 2);
+      ctx.rect(x - s * 0.95, y + s * 0.2, s * 1.75, s * 0.7);
+    };
+    inkShadow(puff, 3, 5);
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = INK;
+    puff();
+    ctx.stroke();
+    ctx.fillStyle = CARD;
+    puff();
+    ctx.fill(); // over the stroke, so the arcs inside vanish
+    // a face like Клякса's
+    ctx.fillStyle = 'rgba(255,152,167,.55)';
+    for (const e of [-0.62, 0.42]) {
+      ctx.beginPath();
+      ctx.ellipse(x + e * s, y + s * 0.18, s * 0.16, s * 0.1, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = INK;
+    for (const e of [-0.4, 0.2]) {
+      ctx.beginPath();
+      ctx.ellipse(x + e * s, y - s * 0.05, s * 0.09, s * (c.release ? 0.05 : 0.12), 0, 0, Math.PI * 2);
       ctx.fill();
     }
   }
 
-  function drawMouse() {
-    if (!mouse) return;
-    const { groundY } = L();
-    const s = Math.max(14, PW * 0.035);
+  /** The shelf spans the playfield, so on wide screens it shows where to play. */
+  const shelfEnds = () => [Math.max(4, OX - 24), Math.min(W - 4, OX + PW + 24)];
+
+  function drawShelf(groundY: number) {
+    const [x0, x1] = shelfEnds();
+    const y = groundY, h = PLANK;
+    const plank = () => {
+      ctx.beginPath();
+      ctx.roundRect(x0, y, x1 - x0, h, 14);
+    };
+    inkShadow(plank, 0, 6);
+    const g = ctx.createLinearGradient(0, y, 0, y + h);
+    g.addColorStop(0, '#F0B47B');
+    g.addColorStop(1, '#EAA66A');
+    plank();
+    ctx.fillStyle = g;
+    ctx.fill();
     ctx.save();
-    ctx.translate(OX + mouse.x * PW, groundY + 6 - Math.abs(Math.sin(time * 18)) * 3);
-    ctx.scale(mouse.dir, 1); // drawn facing right
+    plank();
+    ctx.clip();
+    ctx.fillStyle = 'rgba(43,35,64,.12)';
+    for (let px = x0 + 120; px < x1; px += 123) ctx.fillRect(px, y, 3, h);
+    ctx.fillStyle = 'rgba(43,35,64,.08)';
+    ctx.fillRect(x0, y + h * 0.45, x1 - x0, h * 0.07);
+    // paint that missed the bucket stays on the shelf
+    for (const s of splats) {
+      wobbly(OX + s.x * PW, y + 3, s.r, s.r * 0.42, (a) => 1 + 0.18 * Math.sin(a * 7 + s.seed * 10) + 0.08 * Math.sin(a * 3 + s.seed * 4));
+      ctx.fillStyle = s.hex;
+      ctx.fill();
+    }
+    ctx.restore();
+    plank();
+    ctx.lineWidth = 4;
     ctx.strokeStyle = INK;
-    ctx.lineWidth = 2.5;
+    ctx.stroke();
+  }
+
+  function drawMouse(groundY: number) {
+    if (!mouse) return;
+    const s = Math.max(14, Math.min(22, PW * 0.035));
+    ctx.save();
+    const [x0, x1] = shelfEnds();
+    ctx.translate(x0 + mouse.x * (x1 - x0), groundY - 1 - Math.abs(Math.sin(time * 18)) * 3);
+    ctx.scale(mouse.dir, 1); // drawn facing right
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 3;
     ctx.beginPath(); // tail
     ctx.moveTo(-s * 1.1, -s * 0.4);
     ctx.quadraticCurveTo(-s * 2, -s * 1.4 + Math.sin(time * 12) * 4, -s * 2.4, -s * 0.6);
     ctx.stroke();
-    // the mop: a stick held forward and a wet head sweeping the floor
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = '#A0703C';
+    // the mop: a stick held forward and a wet head sweeping the shelf
+    ctx.lineWidth = 3.5;
     ctx.beginPath();
     ctx.moveTo(s * 0.4, -s * 1.3);
-    ctx.lineTo(s * 2.1, -s * 0.05);
+    ctx.lineTo(s * 2.1, -s * 0.1);
+    ctx.stroke();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#C9874E';
     ctx.stroke();
     ctx.fillStyle = '#7FB3E6';
     ctx.strokeStyle = INK;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 2.5;
     for (let i = 0; i < 5; i++) {
       ctx.beginPath();
-      ctx.ellipse(s * 1.75 + i * s * 0.18, s * 0.05 + Math.sin(time * 20 + i) * 1.5, s * 0.14, s * 0.32, 0.3, 0, Math.PI * 2);
+      ctx.ellipse(s * 1.75 + i * s * 0.18, s * 0.02 + Math.sin(time * 20 + i) * 1.5, s * 0.14, s * 0.3, 0.3, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
     }
-    ctx.fillStyle = '#A9A3B5';
-    ctx.lineWidth = 2.5;
+    ctx.fillStyle = '#B7B0C6';
+    ctx.lineWidth = 3;
     ctx.beginPath(); // body
     ctx.ellipse(0, -s * 0.55, s * 1.15, s * 0.7, 0, 0, Math.PI * 2);
     ctx.fill();
@@ -481,7 +587,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     ctx.ellipse(s * 0.95, -s * 0.85, s * 0.55, s * 0.45, -0.3, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
-    ctx.fillStyle = '#F2B8C6';
+    ctx.fillStyle = '#FF98A7';
     ctx.beginPath(); // ear
     ctx.arc(s * 0.75, -s * 1.35, s * 0.32, 0, Math.PI * 2);
     ctx.fill();
@@ -491,254 +597,122 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     ctx.fill();
     ctx.fillStyle = INK;
     ctx.beginPath(); // eye
-    ctx.arc(s * 1.08, -s * 0.95, s * 0.08, 0, Math.PI * 2);
+    ctx.arc(s * 1.08, -s * 0.95, s * 0.09, 0, Math.PI * 2);
     ctx.fill();
+    ctx.lineWidth = 3;
     ctx.beginPath(); // running feet
     for (const f of [-0.5, 0.5]) {
       ctx.moveTo(f * s, -s * 0.05);
-      ctx.lineTo(f * s + Math.sin(time * 18 + f * 3) * 4, s * 0.15);
+      ctx.lineTo(f * s + Math.sin(time * 18 + f * 3) * 4, s * 0.12);
     }
     ctx.stroke();
     ctx.restore();
   }
 
-  function drawPlayer() {
-    const { bw, bh, bTop, bodyH, groundY } = L();
+  /** The bucket on Клякса's head, filled with the mix so far. */
+  function drawBucket() {
+    const { bw, bh, bTop, bBot } = L();
     const x = OX + bx * PW;
-    const squish = 1 + 0.03 * Math.sin(time * 4);
-    const rx = bw * 0.4 * squish, ry = bodyH / 2 / squish;
-    const cy = groundY - ry;
-    const top = bTop, bot = bTop + bh;
-    const tw = bw / 2, bwb = bw * 0.38;
-
-    // arms first, so the body and the bucket cover their ends
-    ctx.strokeStyle = INK;
-    ctx.lineCap = 'round';
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    for (const sd of [-1, 1]) {
-      ctx.moveTo(x + sd * rx * 0.8, cy - ry * 0.3);
-      ctx.quadraticCurveTo(x + sd * (tw + 8), cy - ry * 0.9, x + sd * (bwb + 6), bot - 4);
-    }
-    ctx.stroke();
-    ctx.fillStyle = BLOB;
-    ctx.lineWidth = 2.5;
-    for (const sd of [-1, 1]) {
-      ctx.beginPath(); // hands on the bucket
-      ctx.arc(x + sd * (bwb + 4), bot - 6, bw * 0.06, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-    }
-
-    // the body has a flat bottom on the floor
-    ctx.lineWidth = 3.5;
-    ctx.beginPath();
-    for (let i = 0; i <= 40; i++) {
-      const a = (i / 40) * Math.PI * 2;
-      const k = 1 + 0.05 * Math.sin(a * 5 + time * 3);
-      const px = x + Math.cos(a) * rx * k;
-      const py = cy + Math.sin(a) * ry * (Math.sin(a) > 0 ? 1 : k);
-      i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
-    }
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-    // eyes look up at the lowest drop
-    const next = drops.filter((d) => d.y < bTop).sort((a, b) => b.y - a.y)[0];
-    const look = next ? Math.max(-1, Math.min(1, (OX + next.x * PW - x) / 120)) : 0;
-    const er = Math.min(rx, ry);
-    for (const e of [-0.32, 0.32]) {
-      const ex = x + e * rx, ey = cy - ry * 0.22;
-      ctx.fillStyle = '#fff';
-      ctx.lineWidth = 2;
+    const tw = bw / 2, bwb = bw * 0.39, rr = bw * 0.1;
+    const rimH = bw * 0.13;
+    const body = () => {
       ctx.beginPath();
-      ctx.ellipse(ex, ey, er * 0.24, er * 0.3, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-      ctx.fillStyle = INK;
-      ctx.beginPath();
-      ctx.arc(ex + look * er * 0.09, ey - er * 0.1, er * 0.12, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.lineWidth = 2.5;
-    ctx.beginPath(); // smile
-    ctx.arc(x, cy + ry * 0.2, er * 0.22, 0.15 * Math.PI, 0.85 * Math.PI);
-    ctx.stroke();
-
-    // the bucket over the head, filled with the mix so far
-    const shape = () => {
-      ctx.beginPath();
-      ctx.moveTo(x - tw, top);
-      ctx.lineTo(x + tw, top);
-      ctx.lineTo(x + bwb, bot);
-      ctx.lineTo(x - bwb, bot);
+      ctx.moveTo(x - tw * 0.94, bTop + rimH * 0.5);
+      ctx.lineTo(x + tw * 0.94, bTop + rimH * 0.5);
+      ctx.lineTo(x + bwb, bBot - rr);
+      ctx.quadraticCurveTo(x + bwb, bBot, x + bwb - rr, bBot);
+      ctx.lineTo(x - bwb + rr, bBot);
+      ctx.quadraticCurveTo(x - bwb, bBot, x - bwb, bBot - rr);
       ctx.closePath();
     };
-    shape();
-    ctx.fillStyle = '#D9DEE8';
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    // handle, lying back behind the bucket
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = INK;
+    ctx.beginPath();
+    ctx.ellipse(x, bTop + rimH * 0.5, tw * 0.8, bh * 0.45, 0, Math.PI, Math.PI * 2);
+    ctx.stroke();
+
+    body();
+    ctx.fillStyle = '#E4ECF5';
     ctx.fill();
     const hex = mixHex(bucket);
-    const fill = Math.min(1, totalDrops(bucket) / capacity());
     if (hex) {
+      const fill = Math.min(1, totalDrops(bucket) / capacity());
+      const inner = bBot - (bTop + rimH);
+      const surface = bBot - inner * fill;
+      const amp = 2 + slosh * 4;
       ctx.save();
-      shape();
+      body();
       ctx.clip();
-      const surface = bot - (bot - top - 6) * fill;
       ctx.fillStyle = hex;
       ctx.beginPath();
-      ctx.moveTo(x - tw, bot);
-      for (let i = 0; i <= 20; i++) ctx.lineTo(x - tw + (i / 20) * bw, surface + Math.sin(i * 0.9 + time * 5) * 2.5);
-      ctx.lineTo(x + tw, bot);
+      ctx.moveTo(x - tw, bBot + 2);
+      for (let i = 0; i <= 24; i++) ctx.lineTo(x - tw + (i / 24) * bw, surface + Math.sin(i * 0.8 + time * 5) * amp);
+      ctx.lineTo(x + tw, bBot + 2);
       ctx.fill();
+      ctx.strokeStyle = shade(hex, 0.35);
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      for (let i = 0; i <= 24; i++) {
+        const px = x - tw + (i / 24) * bw, py = surface + Math.sin(i * 0.8 + time * 5) * amp;
+        i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+      }
+      ctx.stroke();
       ctx.restore();
     }
-    ctx.strokeStyle = 'rgba(43,35,64,.25)';
-    ctx.lineWidth = 1.5;
+    // gloss, like on the jars
+    ctx.save();
+    body();
+    ctx.clip();
+    ctx.fillStyle = 'rgba(255,255,255,.55)';
+    ctx.beginPath();
+    ctx.roundRect(x - tw * 0.62, bTop + rimH + bh * 0.08, bw * 0.08, bh * 0.62, bw * 0.04);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.35)';
+    ctx.beginPath();
+    ctx.roundRect(x - tw * 0.4, bTop + rimH + bh * 0.08, bw * 0.035, bh * 0.3, bw * 0.02);
+    ctx.fill();
+    ctx.restore();
+    // a tick per drop the bucket holds
+    ctx.strokeStyle = 'rgba(43,35,64,.3)';
+    ctx.lineWidth = 2;
     const cap = capacity();
-    ctx.beginPath(); // a tick per drop the bucket holds
+    const inner = bBot - (bTop + rimH);
+    ctx.beginPath();
     for (let i = 1; i < cap; i++) {
-      const y = bot - ((bot - top - 6) * i) / cap;
-      const hw = tw + (bwb - tw) * ((y - top) / (bot - top));
-      ctx.moveTo(x + hw - 8, y);
-      ctx.lineTo(x + hw - 2, y);
+      const y = bBot - (inner * i) / cap;
+      const hw = tw * 0.94 + (bwb - tw * 0.94) * ((y - bTop) / bh);
+      ctx.moveTo(x + hw - 9, y);
+      ctx.lineTo(x + hw - 4, y);
     }
     ctx.stroke();
-    shape();
-    ctx.lineWidth = 3.5;
+    body();
+    ctx.lineWidth = 4.5;
     ctx.strokeStyle = INK;
+    ctx.stroke();
+    // rim
+    ctx.beginPath();
+    ctx.roundRect(x - tw - 2, bTop, bw + 4, rimH, rimH / 2);
+    ctx.fillStyle = CARD;
+    ctx.fill();
+    ctx.lineWidth = 4;
     ctx.stroke();
     ctx.lineCap = 'butt';
-    if (hex) {
-      ctx.font = `800 13px ${FONT}`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillStyle = INK;
-      ctx.fillText(colorLabel(bucket), x, groundY + 16);
-    }
-  }
-
-  function drawHud() {
-    const x0 = OX + 12;
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'middle';
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = INK;
-    ctx.fillStyle = target.hex;
-    ctx.beginPath();
-    ctx.arc(x0 + 24, 38, 22, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle = INK;
-    ctx.font = `800 17px ${FONT}`;
-    ctx.fillText(`${level}. ${target.name}`, x0 + 56, 26);
-    // the recipe: a ring per drop of each paint, filled as it is caught
-    let px = x0 + 62;
-    ctx.lineWidth = 2;
-    for (const p of PIGMENTS) {
-      const hex = PAINT_BY_ID[p].hex;
-      for (let i = 0; i < goal(p); i++) {
-        ctx.beginPath();
-        ctx.arc(px, 52, 7, 0, Math.PI * 2);
-        ctx.fillStyle = i < bucket[p] ? hex : '#fff';
-        ctx.fill();
-        ctx.strokeStyle = i < bucket[p] || p === 'white' ? INK : hex;
-        ctx.stroke();
-        px += 18;
-      }
-      if (goal(p)) px += 6;
-    }
-    const xr = OX + PW - 12;
-    ctx.textAlign = 'right';
-    ctx.fillStyle = INK;
-    ctx.font = `800 24px ${FONT}`;
-    ctx.fillText(String(score), xr, 26);
-    ctx.font = `700 19px system-ui, sans-serif`;
-    ctx.fillStyle = '#E8273F';
-    ctx.fillText('♥'.repeat(Math.max(0, lives)) + '♡'.repeat(LIVES - Math.max(0, lives)), xr, 53);
-    if (combo > 1) {
-      ctx.fillStyle = INK;
-      ctx.font = `800 14px ${FONT}`;
-      ctx.fillText(`серия ×${Math.min(combo, 5)}`, xr - ctx.measureText(String(score)).width - 60, 26);
-    }
-  }
-
-  function centerText(lines: [string, number, string?][], y: number) {
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    for (const [t, size, color] of lines) {
-      ctx.font = `800 ${size}px ${FONT}`;
-      ctx.fillStyle = color ?? INK;
-      ctx.fillText(t, W / 2, y, W - 24);
-      y += size * 1.35;
-    }
-  }
-
-  function veil(alpha: number) {
-    ctx.fillStyle = `rgba(255,251,243,${alpha})`;
-    ctx.fillRect(0, 0, W, H);
   }
 
   function draw() {
-    const { cloudY, groundY } = L();
+    const { cloudY, groundY, bTop } = L();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, W, H);
-    ctx.translate(shakeT ? Math.sin(time * 80) * 6 * (shakeT / 0.3) : 0, 0);
-    if (OX > 1) {
-      // on wide screens the playfield is a column; the sides stay out of play
-      ctx.fillStyle = '#F6EAD6';
-      ctx.fillRect(-10, 0, OX + 10, H);
-      ctx.fillRect(OX + PW, 0, W - OX - PW + 10, H);
-      ctx.strokeStyle = 'rgba(43,35,64,.12)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(OX, 0);
-      ctx.lineTo(OX, H);
-      ctx.moveTo(OX + PW, 0);
-      ctx.lineTo(OX + PW, H);
-      ctx.stroke();
-    }
-    ctx.fillStyle = '#F2DDB8';
-    ctx.fillRect(-10, groundY, W + 20, H - groundY);
-    ctx.strokeStyle = INK;
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(-10, groundY);
-    ctx.lineTo(W + 10, groundY);
-    ctx.stroke();
-    ctx.globalAlpha = 0.85;
-    for (const s of splats) {
-      wobbly(OX + s.x * PW, s.y, s.r, s.r * 0.45, (a) => 1 + 0.18 * Math.sin(a * 7 + s.seed * 10) + 0.08 * Math.sin(a * 3 + s.seed * 4));
-      ctx.fillStyle = s.hex;
-      ctx.fill();
-    }
-    ctx.globalAlpha = 1;
+    if (shakeT) ctx.translate(Math.sin(time * 80) * 6 * (shakeT / 0.3), 0);
 
-    if (phase === 'start') {
-      drawPlayer();
-      centerText(
-        [
-          ['Лови капли в ведро', 24],
-          ['и смешай нужный цвет!', 24],
-          ['', 8],
-          ['Лишняя капля и грязь', 17],
-          ['портят ведро', 17],
-          ['', 8],
-          ['Нажми, чтобы начать', 22, BLOB],
-        ],
-        H * 0.24,
-      );
-      return;
-    }
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(OX, 0, PW, H);
-    ctx.clip();
     for (const c of clouds) for (const shift of [-1, 0, 1]) drawCloud(c, cloudY, shift);
-    ctx.restore();
     for (const d of drops) drawDrop(d);
-    drawPlayer();
-    drawMouse();
+    drawShelf(groundY);
+    drawBucket();
+    drawMouse(groundY);
     for (const q of parts) {
       ctx.fillStyle = q.hex;
       ctx.beginPath();
@@ -747,39 +721,32 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     }
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.lineWidth = 4;
-    ctx.strokeStyle = '#fff';
+    ctx.lineJoin = 'round';
     for (const f of floats) {
       ctx.globalAlpha = Math.max(0, 1 - f.t / 1.2);
-      ctx.font = `800 ${f.big ? 26 : 16}px ${FONT}`;
-      const fx = Math.max(60, Math.min(W - 60, OX + f.x * PW));
-      ctx.strokeText(f.text, fx, f.y - f.t * 40);
-      ctx.fillStyle = f.hex === '#FFFDF7' ? INK : f.hex;
-      ctx.fillText(f.text, fx, f.y - f.t * 40);
+      const size = f.big ? 24 : 17;
+      ctx.font = `800 ${size}px ${DISPLAY}`;
+      const fx = Math.max(90, Math.min(W - 90, OX + f.x * PW));
+      const fy = f.y - f.t * 40;
+      ctx.lineWidth = size * 0.3;
+      ctx.strokeStyle = INK;
+      ctx.strokeText(f.text, fx, fy);
+      ctx.fillStyle = f.hex;
+      ctx.fillText(f.text, fx, fy);
     }
     ctx.globalAlpha = 1;
-    drawHud();
 
-    if (phase === 'over') {
-      veil(0.88);
-      centerText(
-        [
-          ['Ведро упало!', 36],
-          [`Очки: ${score}`, 24],
-          [record ? 'Новый рекорд!' : `Рекорд: ${opts.best()}`, 20, record ? '#E8273F' : INK],
-          [`Дошли до цвета: ${target.name.toLowerCase()}`, 16],
-          ['', 8],
-          [phaseT > 0.8 ? 'Нажми, чтобы ещё раз' : '', 22, BLOB],
-        ],
-        H * 0.3,
-      );
-    } else if (paused) {
-      veil(0.7);
-      centerText([['Пауза', 36], ['Нажми, чтобы продолжить', 18, BLOB]], H * 0.42);
-    }
+    const next = drops.filter((d) => d.y < bTop).sort((a, b) => b.y - a.y)[0];
+    opts.frame({
+      x: OX + bx * PW,
+      groundY,
+      width: L().bw,
+      look: next ? { x: OX + next.x * PW, y: next.y } : null,
+      shelfRight: shelfEnds()[1],
+    });
   }
 
-  // ---------- loop and input ----------
+  // ---------- loop ----------
   let raf = 0;
   let last = performance.now();
   const frame = (now: number) => {
@@ -791,25 +758,10 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
   };
   raf = requestAnimationFrame(frame);
 
-  const toPlayfield = (clientX: number) => (clientX - canvas.getBoundingClientRect().left - OX) / PW;
-
-  /** Starts, restarts or unpauses; true when the tap was used up by that. */
-  function wake() {
-    if (phase === 'start' || (phase === 'over' && phaseT > 0.8)) {
-      start();
-      return true;
-    }
-    if (paused && phase === 'play') {
-      paused = false;
-      return true;
-    }
-    return phase === 'over';
-  }
-
   return {
+    start,
     resize,
     pour,
-    wake,
     get phase() {
       return phase;
     },
@@ -817,10 +769,10 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
       return paused;
     },
     set paused(on: boolean) {
-      paused = on && phase === 'play';
+      paused = on && (phase === 'play' || phase === 'won');
     },
     pointer(clientX: number | null) {
-      aim = clientX === null ? null : toPlayfield(clientX);
+      aim = clientX === null ? null : (clientX - canvas.getBoundingClientRect().left - OX) / PW;
     },
     key(dir: 'left' | 'right', down: boolean) {
       if (down) keys.add(dir);
