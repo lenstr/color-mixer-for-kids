@@ -64,9 +64,8 @@ async function askForHelp() {
   go({ name: 'home' });
 }
 
-/** The glade is painted: the hedgehog thanks and gives the gold paint. */
+/** The glade is painted: the hedgehog thanks and gives the gold paint. Call it once. */
 export async function gladeSaved() {
-  if (store.story === 'saved') return;
   store.story = 'saved';
   await scene({
     actor: 'hedgehog',

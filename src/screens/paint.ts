@@ -37,6 +37,8 @@ export interface PaintStory {
   back: Route;
   /** phrase id said when the screen opens */
   intro: string;
+  /** whether the hint button helps here */
+  hints: boolean;
   /**
    * runs once the picture is complete, and on opening a complete one, since
    * leaving the screen right after the last stroke cancels the call;
@@ -128,7 +130,7 @@ export function paintScreen(pic: Picture, story?: PaintStory): Screen {
   const undoBtn = $<HTMLButtonElement>(grid, '[data-act="undo"]');
   const clearBtn = $<HTMLButtonElement>(grid, '[data-act="clear"]');
   const saveBtn = $<HTMLButtonElement>(grid, '[data-act="save"]');
-  hintBtn.hidden = mode === 'free' || !!story;
+  hintBtn.hidden = mode === 'free' || story?.hints === false;
 
   const speech = speechBubble(bubble);
   const showBubble = speech.show;

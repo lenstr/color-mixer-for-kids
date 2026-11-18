@@ -55,6 +55,7 @@ export function gladeScreen(): Screen {
     mode: 'task',
     back: { name: 'quests' },
     intro: 'glade-intro',
+    hints: false,
     done(screen) {
       if (store.story === 'saved') return;
       void gladeSaved().then(() => showGift(screen));
