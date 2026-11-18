@@ -10,14 +10,12 @@ export function villainSVG() {
     <path d="M42 176C10 156 12 94 46 64C74 30 152 20 192 52C230 82 232 146 202 174C210 182 212 202 198 204C188 205 186 194 184 186C168 194 150 196 132 196C132 212 124 220 114 218C104 215 106 204 106 196C84 196 64 192 50 186C46 196 30 198 28 188C27 180 36 178 42 176Z"
       fill="#2A2238" stroke="${INK}" stroke-width="6" stroke-linejoin="round"/>
     <path d="M58 96C62 74 80 56 104 50" fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round" opacity=".18"/>
-    <g class="villain-eyes">
-      <ellipse cx="90" cy="104" rx="22" ry="25" fill="#FFF7D6" stroke="${INK}" stroke-width="4"/>
-      <ellipse cx="152" cy="104" rx="22" ry="25" fill="#FFF7D6" stroke="${INK}" stroke-width="4"/>
-      <circle cx="98" cy="110" r="10" fill="#E8273F"/>
-      <circle cx="144" cy="110" r="10" fill="#E8273F"/>
-      <circle cx="101" cy="106" r="3" fill="#fff"/>
-      <circle cx="147" cy="106" r="3" fill="#fff"/>
-    </g>
+    <ellipse cx="90" cy="104" rx="22" ry="25" fill="#FFF7D6" stroke="${INK}" stroke-width="4"/>
+    <ellipse cx="152" cy="104" rx="22" ry="25" fill="#FFF7D6" stroke="${INK}" stroke-width="4"/>
+    <circle cx="98" cy="110" r="10" fill="#E8273F"/>
+    <circle cx="144" cy="110" r="10" fill="#E8273F"/>
+    <circle cx="101" cy="106" r="3" fill="#fff"/>
+    <circle cx="147" cy="106" r="3" fill="#fff"/>
     <path d="M58 72L112 90M184 72L130 90" fill="none" stroke="#120E1C" stroke-width="11" stroke-linecap="round"/>
     <path d="M74 146Q121 186 168 146Q121 164 74 146Z" fill="#7A1534" stroke="${INK}" stroke-width="4" stroke-linejoin="round"/>
     <path d="M88 152l7 12 6-10M140 152l-7 12-6-10" fill="#fff" stroke="${INK}" stroke-width="2.5" stroke-linejoin="round"/>

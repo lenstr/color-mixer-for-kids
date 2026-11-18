@@ -91,7 +91,7 @@ export function paintScreen(pic: Picture, story?: PaintStory): Screen {
   );
 
   const grid = html(`
-    <div class="mixer-grid paint-layout">
+    <div class="mixer-grid">
       <div class="stage paint-stage">
         <div class="picture-wrap">${pictureSVG(pic, art.fills, { dotted: true, interactive: true })}</div>
         <div class="paint-tools">

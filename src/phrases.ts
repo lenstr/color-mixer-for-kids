@@ -2,7 +2,7 @@
 // mp3 files in public/voice/<id>.mp3; at runtime the game plays the file and
 // falls back to the browser's speech synthesis if it is missing.
 
-import { ALL_COLORS, GOLD_PAINT, MIX_COLORS, PAINTS } from './data';
+import { ALL_COLORS, MIX_COLORS, PAINTS } from './data';
 import { PICTURES } from './coloring/pictures';
 
 const lc = (s: string) => s.toLowerCase();
@@ -15,7 +15,6 @@ function paintList(ids: string[]) {
     blue: 'синюю',
     white: 'белую',
     black: 'чёрную',
-    gold: 'золотую',
   };
   const words = ids.map((i) => acc[i]);
   return words.length === 1 ? words[0] : `${words.slice(0, -1).join(', ')} и ${words.at(-1)}`;
@@ -71,7 +70,8 @@ for (const p of PICTURES) {
   PHRASES[`paint-${p.id}`] = `Раскрась ${p.acc}!`;
 }
 
-for (const p of [...PAINTS, GOLD_PAINT]) {
+// hints never ask for gold: no task or picture needs it
+for (const p of PAINTS) {
   PHRASES[`add-${p.id}`] = `Добавь ${p.genitive} краски!`;
 }
 

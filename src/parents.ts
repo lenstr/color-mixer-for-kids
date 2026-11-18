@@ -12,7 +12,7 @@ const rand = (lo: number, hi: number) => lo + Math.floor(Math.random() * (hi - l
 /** The gear button; `onChange` runs after the panel closes if anything changed. */
 export function parentButton(onChange: () => void) {
   const btn = html<HTMLButtonElement>(
-    `<button class="icon-btn parent-btn" aria-label="Для взрослых">${icon.gear}</button>`,
+    `<button class="icon-btn" aria-label="Для взрослых">${icon.gear}</button>`,
   );
   btn.addEventListener('click', () => {
     sfx.tap();
