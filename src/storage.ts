@@ -122,6 +122,7 @@ export const store = {
   set story(s: StoryStage) {
     data.story = s;
     save();
+    paintWorld();
   },
   /** The hedgehog's gift: the gold paint. */
   get gold() {
@@ -139,5 +140,12 @@ export const store = {
     data.catchBest = 0;
     data.story = 'none';
     save();
+    paintWorld();
   },
 };
+
+/** The root class `is-colorless` grays the world while Кляксын holds the colors. */
+function paintWorld() {
+  document.documentElement.classList.toggle('is-colorless', store.colorless);
+}
+paintWorld();

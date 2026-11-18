@@ -18,7 +18,7 @@ function recipeHTML(recipe: Record<Pigment, number>) {
 
 export function collectionScreen(): Screen {
   const found = store.discoveredCount();
-  const root = html(`<section class="screen collection ${store.colorless ? 'is-colorless' : ''}"></section>`);
+  const root = html(`<section class="screen collection"></section>`);
   root.append(topBar('Коллекция', { name: 'home' }, `<span class="star-total is-count"><b>${found}</b> из ${MIX_COLORS.length}</span>`));
 
   const body = html(`

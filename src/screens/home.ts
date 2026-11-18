@@ -135,7 +135,7 @@ export function homeScreen(): Screen {
   return {
     el: root,
     mount() {
-      storyCheck({ refresh: paintProgress });
+      storyCheck();
     },
     destroy() {
       clearInterval(cycle);

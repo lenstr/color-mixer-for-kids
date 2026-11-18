@@ -6,36 +6,28 @@
 import { MIX_COLORS } from '../data';
 import { store } from '../storage';
 import { go } from '../ui';
-import { scene, sceneOpen } from './cutscene';
+import { scene } from './cutscene';
 
 export const allSolved = () => MIX_COLORS.every((c) => store.stars(c.id) > 0);
 
 export interface StoryHooks {
   /** shows the colors being drained from the screen */
   drain?(): Promise<void>;
-  /** redraws the screen, gray after the theft */
-  refresh(): void;
 }
 
-let playing = false;
+/** The scenes in play; the screen they end on checks again and must wait. */
+let running: Promise<void> | null = null;
 
-/** Plays the next story scene if its moment has come; true if it did. */
-export function storyCheck(hooks: StoryHooks): boolean {
-  // the theft redraws the screen it runs on, which checks again
-  if (playing || sceneOpen()) return false;
-  if (store.story === 'none' && allSolved()) {
-    playing = true;
-    void theft(hooks)
-      .then(askForHelp)
-      .finally(() => (playing = false));
-    return true;
-  }
+/** Plays the next story scenes if their moment has come; true if it did. */
+export function storyCheck(hooks: StoryHooks = {}): boolean {
+  if (running) return false;
+  let play: () => Promise<void>;
+  if (store.story === 'none' && allSolved()) play = () => theft(hooks).then(askForHelp);
   // the theft was seen, but the hedgehog was not (the game was closed between)
-  if (store.story === 'stolen') {
-    void askForHelp();
-    return true;
-  }
-  return false;
+  else if (store.story === 'stolen') play = askForHelp;
+  else return false;
+  running = play().finally(() => (running = null));
+  return true;
 }
 
 async function theft(hooks: StoryHooks) {
@@ -45,8 +37,8 @@ async function theft(hooks: StoryHooks) {
     button: 'Ой-ой!',
   });
   await hooks.drain?.();
+  // the root class keeps the drained screen gray
   store.story = 'stolen';
-  hooks.refresh();
   await scene({
     actor: 'klyaksa',
     voice: 'villain-after',

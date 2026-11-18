@@ -2193,10 +2193,10 @@ label.parent-row { cursor: pointer; }
 }
 .story-next { animation: fade-up 0.4s 1.2s both; }
 
-/* Кляксын drains the solved tasks, and they stay gray until the glade is painted */
-.levels.is-colorless .level-tile,
-.collection.is-colorless .sticker,
-.collection.is-colorless .basic { filter: grayscale(1) brightness(1.05); }
+/* Кляксын drains the solved tasks, and the root class keeps them and the
+   collection gray until the glade is painted */
+.is-colorless :is(.levels .level-tile, .collection .sticker, .collection .basic),
+.level-grid.is-drained .level-tile { filter: grayscale(1) brightness(1.05); }
 .colorless-note {
   display: flex;
   align-items: center;
@@ -2215,10 +2215,7 @@ label.parent-row { cursor: pointer; }
 .colorless-hero { flex: none; width: 92px; }
 .colorless-hero svg { display: block; width: 100%; height: auto; }
 
-.level-grid.is-drained .level-tile {
-  filter: grayscale(1) brightness(1.05);
-  transition: filter 1.2s ease-in calc(var(--i) * 40ms);
-}
+.level-grid.is-drained .level-tile { transition: filter 1.2s ease-in calc(var(--i) * 40ms); }
 .level-grid.is-drained .level-stars .star {
   animation: star-gone 0.7s ease-in calc(var(--i) * 40ms + 0.3s) both;
 }

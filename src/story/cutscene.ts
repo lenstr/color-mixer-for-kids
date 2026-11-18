@@ -18,12 +18,7 @@ export interface SceneOptions {
   button: string;
 }
 
-let open = false;
-/** A scene is on screen; story checks wait for it to end. */
-export const sceneOpen = () => open;
-
 export function scene(o: SceneOptions): Promise<void> {
-  open = true;
   const text = PHRASES[o.voice];
   const root = html(`
     <div class="story-backdrop is-${o.actor}">
@@ -58,7 +53,6 @@ export function scene(o: SceneOptions): Promise<void> {
         setTimeout(() => {
           blob?.destroy();
           root.remove();
-          open = false;
           resolve();
         }, 750);
       },

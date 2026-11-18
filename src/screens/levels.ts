@@ -21,7 +21,7 @@ export function isUnlocked(i: number) {
 }
 
 export function levelsScreen(): Screen {
-  const root = html(`<section class="screen levels ${store.colorless ? 'is-colorless' : ''}"></section>`);
+  const root = html(`<section class="screen levels"></section>`);
   const total = store.totalStars();
   root.append(
     topBar('Задания', { name: 'home' }, `<span class="star-total">${starSVG(true)}<b>${total}</b></span>`),
@@ -76,7 +76,6 @@ export function levelsScreen(): Screen {
           grid.classList.add('is-drained');
           await new Promise((r) => setTimeout(r, 1700));
         },
-        refresh: () => go({ name: 'levels' }),
       });
       if (!story) say(store.story === 'asked' ? 'colors-gone' : 'levels');
       root.querySelector('.is-current')?.scrollIntoView({ block: 'center', behavior: 'smooth' });
