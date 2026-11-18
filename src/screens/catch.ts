@@ -13,7 +13,7 @@ import { CARD, INK } from '../palette';
 import { sfx } from '../audio';
 import { say, speaking } from '../speech';
 import { store } from '../storage';
-import { $, type DialogOptions, type Screen, dialog, go, html, topBar } from '../ui';
+import { $, type DialogOptions, type Screen, dialog, go, html, restartClass, topBar } from '../ui';
 
 const KEYS: Record<string, 'left' | 'right'> = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right' };
 
@@ -61,36 +61,37 @@ export function catchScreen(): Screen {
   blobBox.append(blob.el);
 
   // ---------- task card ----------
-  let shownTarget = '';
+  // Only what changed is touched, so a lit pip pops once, when it lights.
+  const recipeEl = $(card, '.catch-recipe');
+  const scoreEl = $(card, '[data-score]');
+  const livesEl = $(card, '.catch-lives');
+  let shownLevel = 0;
   let shownScore = 0;
+  let shownLives = -1;
+  let pips: Element[][] = []; // per recipe part
   function renderHud(h: Hud) {
-    if (shownTarget !== h.target.id) {
-      shownTarget = h.target.id;
+    if (shownLevel !== h.level) {
+      shownLevel = h.level;
       $(card, '.catch-target').innerHTML = swatchSVG(h.target.hex, h.level + 3, { face: true });
       $(card, '.catch-name').textContent = h.target.name;
       $(card, '.catch-kicker').textContent = `Цвет ${h.level}`;
+      // the recipe in drops, mixed ones too: purple + white for lilac
+      recipeEl.innerHTML = h.recipe
+        .map((part) => `<span class="catch-part">${`<span class="catch-pip">${dropSVG(part.hex)}</span>`.repeat(part.need)}</span>`)
+        .join('<b class="catch-plus">+</b>');
+      pips = [...recipeEl.querySelectorAll('.catch-part')].map((part) => [...part.children]);
     }
-    // the recipe in drops, mixed ones too: purple + white for lilac
-    const recipeEl = $(card, '.catch-recipe');
-    recipeEl.innerHTML = h.recipe
-      .map(
-        (part) =>
-          `<span class="catch-part">${Array.from(
-            { length: part.need },
-            (_, i) => `<span class="catch-pip ${i < part.got ? 'is-on' : ''}">${dropSVG(part.hex)}</span>`,
-          ).join('')}</span>`,
-      )
-      .join('<b class="catch-plus">+</b>');
+    h.recipe.forEach((part, i) => pips[i].forEach((pip, j) => pip.classList.toggle('is-on', j < part.got)));
     recipeEl.setAttribute('aria-label', h.recipe.map((part) => `${part.name} ${part.got} из ${part.need}`).join(', '));
-    const scoreEl = $(card, '[data-score]');
-    scoreEl.textContent = String(h.score);
     if (h.score !== shownScore) {
       shownScore = h.score;
-      scoreEl.classList.remove('is-bump');
-      void scoreEl.offsetWidth;
-      scoreEl.classList.add('is-bump');
+      scoreEl.textContent = String(h.score);
+      restartClass(scoreEl, 'is-bump');
     }
-    $(card, '.catch-lives').innerHTML = Array.from({ length: LIVES }, (_, i) => heartSVG(i < h.lives)).join('');
+    if (h.lives !== shownLives) {
+      shownLives = h.lives;
+      livesEl.innerHTML = Array.from({ length: LIVES }, (_, i) => heartSVG(i < h.lives)).join('');
+    }
     pourBtn.disabled = !h.recipe.some((part) => part.got > 0);
   }
 
