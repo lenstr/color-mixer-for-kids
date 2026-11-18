@@ -19,6 +19,7 @@ const DROPS = (
     ['red', 'Красная'],
     ['yellow', 'Жёлтая'],
     ['blue', 'Синяя'],
+    ['white', 'Белая'],
     ['green', 'Зелёная'],
     ['pink', 'Розовая'],
     ['skyblue', 'Голубая'],
@@ -54,7 +55,7 @@ const DROP_PATH = new Path2D('M0 -22 C7 -11 15 -2 15 7 A15 15 0 0 1 -15 7 C-15 -
 /** Клякса's body is 208 of the blob's 300 units wide and 182 tall above the floor. */
 const BODY_HEIGHT = 182 / 208;
 
-/** Can the drops add up to exactly this recipe × MULT? Gray needs pure white, so no. */
+/** Can the drops add up to exactly this recipe × MULT? */
 function reachable(c: NamedColor) {
   const rest = PIGMENTS.map((p) => c.recipe[p] * MULT);
   const fill = (from: number): boolean => {
