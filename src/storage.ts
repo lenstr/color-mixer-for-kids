@@ -16,6 +16,7 @@ interface Saved {
   unlockAll: boolean; // parent setting: every level is open
   paintMode: PaintMode;
   art: Record<string, Artwork>; // picture id -> artwork
+  catchBest: number; // best score in «Поймай цвет»
 }
 
 function load(): Saved {
@@ -29,7 +30,7 @@ function load(): Saved {
 }
 
 function fresh(): Saved {
-  return { stars: {}, discovered: [], sound: true, unlockAll: false, paintMode: 'hint', art: {} };
+  return { stars: {}, discovered: [], sound: true, unlockAll: false, paintMode: 'hint', art: {}, catchBest: 0 };
 }
 
 const data = load();
@@ -97,11 +98,20 @@ export const store = {
     else delete data.art[id];
     save();
   },
-  /** Forgets stars, found colors and pictures; settings stay. */
+  get catchBest() {
+    return data.catchBest;
+  },
+  /** Keeps the best score. */
+  set catchBest(n: number) {
+    data.catchBest = Math.max(n, data.catchBest);
+    save();
+  },
+  /** Forgets stars, found colors, pictures and the record; settings stay. */
   reset() {
     data.stars = {};
     data.discovered = [];
     data.art = {};
+    data.catchBest = 0;
     save();
   },
 };

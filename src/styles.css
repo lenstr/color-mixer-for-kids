@@ -1924,3 +1924,69 @@ label.parent-row { cursor: pointer; }
   .parent-reset { flex-wrap: wrap; }
   .parent-reset > span { flex-basis: 100%; }
 }
+
+/* ==========================================================================
+   CATCH THE COLOR
+   ========================================================================== */
+
+.menu-catch { --icon-bg: var(--purple); }
+.menu-catch .menu-icon { color: #fff; }
+.menu-btn:nth-child(5) { animation-delay: 0.95s; }
+/* five menu buttons: two by two with the last one centered below, or three
+   over two on wide screens */
+@media (min-width: 900px) and (max-width: 1239px) {
+  .menu-catch { grid-column: 1 / -1; justify-self: center; }
+}
+@media (min-width: 1240px) {
+  .home-menu { display: flex; flex-wrap: wrap; justify-content: center; max-width: 1080px; }
+  .menu-btn { flex: 0 1 320px; }
+}
+
+.catch-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  margin-top: 10px;
+  border: var(--line) solid var(--ink);
+  border-radius: var(--radius);
+  background: #fffbf3;
+  box-shadow: var(--lift);
+  overflow: hidden;
+}
+.catch-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: pointer;
+}
+.catch-pour {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  height: 50px;
+  padding: 0 18px;
+  font-size: 16px;
+}
+.catch-pour svg { width: 22px; height: 22px; }
+
+@media (max-width: 560px) {
+  .catch-stage { margin-top: 6px; border-radius: 20px; }
+  .catch-pour { height: 44px; padding: 0 14px; font-size: 14px; right: 8px; bottom: 8px; }
+}
+@media (max-height: 560px) and (orientation: landscape) {
+  .home-menu { grid-template-columns: repeat(5, auto); gap: 8px; }
+  .menu-catch { grid-column: auto; }
+  .menu-btn { gap: 6px; padding: 5px 10px 5px 5px; }
+  .menu-icon { width: 36px; height: 36px; border-radius: 13px; }
+  .menu-icon svg { width: 20px; height: 20px; }
+  .menu-text b { font-size: 13px; white-space: nowrap; }
+  .catch-stage { margin-top: 4px; }
+}
+@media (max-height: 560px) and (orientation: landscape) and (max-width: 900px) {
+  .menu-icon { display: none; }
+  .menu-btn { padding: 8px 12px; }
+}

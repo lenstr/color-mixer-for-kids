@@ -61,6 +61,10 @@ export function homeScreen(): Screen {
           <span class="menu-icon">${icon.book}</span>
           <span class="menu-text"><b>Коллекция</b><small data-found></small></span>
         </button>
+        <button class="menu-btn menu-catch" data-go="catch">
+          <span class="menu-icon">${icon.bucket}</span>
+          <span class="menu-text"><b>Поймай цвет</b><small data-best></small></span>
+        </button>
       </nav>
       <div class="home-paints" aria-hidden="true">
         ${PAINTS.map((p, i) => `<i style="--c:${p.hex}; --i:${i}"></i>`).join('')}
@@ -89,6 +93,7 @@ export function homeScreen(): Screen {
       ? `${stars} ★ из ${MIX_COLORS.length * 3}`
       : `${MIX_COLORS.length} заданий`;
     $(root, '[data-found]').textContent = `${store.discoveredCount()} из ${MIX_COLORS.length} цветов`;
+    $(root, '[data-best]').textContent = store.catchBest ? `рекорд ${store.catchBest}` : 'лови капли';
   };
   paintProgress();
   $(root, '.home-topright').prepend(parentButton(paintProgress));
@@ -116,7 +121,7 @@ export function homeScreen(): Screen {
   root.querySelectorAll<HTMLButtonElement>('[data-go]').forEach((b) =>
     b.addEventListener('click', () => {
       sfx.tap();
-      go({ name: b.dataset.go as 'levels' | 'studio' | 'coloring' | 'collection' });
+      go({ name: b.dataset.go as 'levels' | 'studio' | 'coloring' | 'collection' | 'catch' });
     }),
   );
 

@@ -40,6 +40,12 @@ export const PHRASES: Record<string, string> = {
   'wrong-color': 'Ой, сюда нужен другой цвет!',
   'picture-done': 'Готово! Какая красивая картинка!',
   'picture-perfect': 'Ура! Все цвета как настоящие!',
+  'catch-intro': 'Лови капельки в ведро и смешай нужный цвет! А грязь не лови!',
+  'catch-extra': 'Ой, лишняя капля!',
+  'catch-mud': 'Фу, грязь!',
+  'catch-mouse': 'А вот и мышка-уборщица!',
+  'catch-over': 'Ведро упало! Давай ещё раз!',
+  'catch-record': 'Ура! Новый рекорд!',
 };
 
 for (const p of PICTURES) {

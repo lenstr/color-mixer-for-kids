@@ -43,6 +43,10 @@ export const icon = {
     '<path d="M4 15.5l9.5-9.5 6 6-7.5 7.5H8.5z"/><path d="M9 10.5l6 6"/><path d="M12 19.5h8"/>',
   ),
   target: wrap('<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1" fill="currentColor"/>'),
+  bucket: wrap(
+    '<path d="M5 10h14l-1.8 10H6.8z"/><path d="M5 10a7 7 0 0 1 14 0"/><path d="M12 2.5c1.2 1.6 1.8 2.6 1.8 3.4a1.8 1.8 0 0 1-3.6 0c0-.8.6-1.8 1.8-3.4z" fill="currentColor"/>',
+  ),
+  pause: wrap('<path d="M9 5.5v13M15 5.5v13"/>'),
   install: wrap('<path d="M12 4v11"/><path d="M7 10.5l5 5 5-5"/><path d="M5 20h14"/>'),
 };
 

@@ -133,4 +133,20 @@ export const sfx = {
   star(i: number) {
     tone(1046.5 * 1.26 ** i, { dur: 0.3, type: 'triangle', vol: 0.3 });
   },
+  /** a drop lands in the bucket; a catch streak climbs the scale */
+  catchDrop(combo: number) {
+    const f = 523.25 * 1.06 ** Math.min(combo, 10);
+    tone(f, { dur: 0.12, type: 'triangle', vol: 0.28, slideTo: f * 1.3 });
+  },
+  spoil() {
+    tone(220, { dur: 0.35, type: 'sawtooth', vol: 0.12, slideTo: 90 });
+    noise({ dur: 0.2, vol: 0.12, from: 900, to: 200 });
+  },
+  squeak() {
+    tone(1700, { dur: 0.07, vol: 0.12, slideTo: 2300 });
+    tone(1800, { at: 0.12, dur: 0.07, vol: 0.12, slideTo: 2400 });
+  },
+  gameOver() {
+    [392, 329.6, 261.6].forEach((f, i) => tone(f, { at: i * 0.18, dur: 0.3, type: 'triangle', vol: 0.25 }));
+  },
 };

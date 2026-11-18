@@ -13,6 +13,7 @@ import { collectionScreen } from './screens/collection';
 import { mixerScreen } from './screens/mixer';
 import { coloringScreen } from './screens/coloring';
 import { paintScreen } from './screens/paint';
+import { catchScreen } from './screens/catch';
 import { PICTURE_BY_ID } from './coloring/pictures';
 import { MIX_COLORS } from './data';
 import { hush } from './speech';
@@ -38,6 +39,8 @@ function build(r: Route): Screen {
       return coloringScreen();
     case 'paint':
       return paintScreen(PICTURE_BY_ID[r.id]);
+    case 'catch':
+      return catchScreen();
   }
 }
 
@@ -56,7 +59,7 @@ function fromHash(): Route {
   }
   const p = h.match(/^paint-(\w+)$/);
   if (p) return PICTURE_BY_ID[p[1]] ? { name: 'paint', id: p[1] } : { name: 'coloring' };
-  if (h === 'levels' || h === 'collection' || h === 'studio' || h === 'coloring') return { name: h };
+  if (h === 'levels' || h === 'collection' || h === 'studio' || h === 'coloring' || h === 'catch') return { name: h };
   return { name: 'home' };
 }
 
