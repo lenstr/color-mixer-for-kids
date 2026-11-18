@@ -1564,43 +1564,16 @@ svg {
    PARENT PANEL
    ========================================================================== */
 
-@property --hold {
-  syntax: '<percentage>';
-  inherits: false;
-  initial-value: 0%;
-}
-.parent-btn {
-  position: relative;
-  color: var(--ink-2);
-  background: conic-gradient(var(--yellow) var(--hold), var(--card) 0);
-}
-.parent-btn.is-holding { animation: parent-hold var(--hold-ms) linear both; }
-@keyframes parent-hold {
-  to { --hold: 100%; }
-}
-.parent-tip {
-  position: absolute;
-  top: calc(100% + 12px);
-  right: 0;
-  padding: 6px 12px;
-  border-radius: 99px;
-  background: var(--ink);
-  color: var(--card);
-  font-size: 14px;
-  white-space: nowrap;
-  opacity: 0;
-  pointer-events: none;
-}
-.parent-btn.is-tipped .parent-tip { animation: parent-tip 2.2s both; }
-@keyframes parent-tip {
-  10%, 80% { opacity: 1; }
-}
-
 .parent-card {
   overflow-y: auto;
   gap: 18px;
   padding: 26px 28px 28px;
   animation-duration: 0.4s;
+}
+.parent-body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
 }
 .parent-title {
   margin: 0;
@@ -1627,7 +1600,10 @@ label.parent-row { cursor: pointer; }
 .parent-row b { font-size: 18px; }
 .parent-row small { color: var(--ink-2); font-size: 14px; }
 .parent-row .btn { height: 48px; padding: 0 18px; font-size: 15px; box-shadow: 0 4px 0 var(--ink); }
-.parent-card > .btn-primary { align-self: flex-end; }
+.parent-body > .btn-primary { align-self: flex-end; }
+.parent-question { margin: 0; font-size: 22px; }
+.parent-answers { display: flex; gap: 14px; }
+.parent-answers .btn { flex: 1; padding: 0; font-size: 24px; }
 @media (max-width: 520px) {
   .parent-card { padding: 20px 18px 22px; }
   .parent-reset { flex-wrap: wrap; }
