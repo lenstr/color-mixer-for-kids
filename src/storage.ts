@@ -5,8 +5,10 @@ export type PaintMode = 'free' | 'hint' | 'task';
 
 /**
  * The story: after all tasks are solved the villain Кляксын steals the
- * colors (`stolen`), after they are solved again the hedgehog asks for help
- * (`asked`), and once his glade is painted he gives the gold paint (`saved`).
+ * colors (`stolen`) and the hedgehog asks for help (`asked`); the world stays
+ * gray until his glade is painted, which brings the colors back and earns the
+ * gold paint (`saved`). Nothing is erased: the stars and found colors only
+ * look gray meanwhile.
  */
 export type StoryStage = 'none' | 'stolen' | 'asked' | 'saved';
 
@@ -125,12 +127,9 @@ export const store = {
   get gold() {
     return data.story === 'saved';
   },
-  /** Кляксын's theft: stars and found colors are gone. */
-  steal() {
-    data.stars = {};
-    data.discovered = [];
-    data.story = 'stolen';
-    save();
+  /** Кляксын took the colors: the tasks and the collection look gray. */
+  get colorless() {
+    return data.story === 'stolen' || data.story === 'asked';
   },
   /** Forgets stars, found colors, pictures, the record and the story; settings stay. */
   reset() {

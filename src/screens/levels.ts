@@ -6,6 +6,7 @@ import { say } from '../speech';
 import { store } from '../storage';
 import { type Screen, go, html, topBar } from '../ui';
 import { storyCheck } from '../story';
+import { hedgehogSVG } from '../story/characters';
 
 /** How many unsolved levels past the furthest solved one stay open, so a kid stuck on one can try another. */
 const OPEN_AHEAD = 3;
@@ -20,7 +21,7 @@ export function isUnlocked(i: number) {
 }
 
 export function levelsScreen(): Screen {
-  const root = html(`<section class="screen levels"></section>`);
+  const root = html(`<section class="screen levels ${store.colorless ? 'is-colorless' : ''}"></section>`);
   const total = store.totalStars();
   root.append(
     topBar('Задания', { name: 'home' }, `<span class="star-total">${starSVG(true)}<b>${total}</b></span>`),
@@ -50,6 +51,19 @@ export function levelsScreen(): Screen {
     grid.append(tile);
   });
   root.append(html(`<div class="scroll-area"></div>`));
+  // while Кляксын holds the colors, the hedgehog's quest is the way back
+  if (store.story === 'asked') {
+    const note = html(`
+      <button class="card colorless-note" data-help>
+        <span class="colorless-hero">${hedgehogSVG()}</span>
+        <span><b>Кляксын забрал цвета!</b><br>Помоги ёжику, и они вернутся</span>
+      </button>`);
+    note.addEventListener('click', () => {
+      sfx.tap();
+      go({ name: 'quests' });
+    });
+    root.lastElementChild!.append(note);
+  }
   root.lastElementChild!.append(grid);
 
   return {
@@ -64,7 +78,7 @@ export function levelsScreen(): Screen {
         },
         refresh: () => go({ name: 'levels' }),
       });
-      if (!story) say('levels');
+      if (!story) say(store.story === 'asked' ? 'colors-gone' : 'levels');
       root.querySelector('.is-current')?.scrollIntoView({ block: 'center', behavior: 'smooth' });
     },
   };

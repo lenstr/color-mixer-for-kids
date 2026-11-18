@@ -1,7 +1,7 @@
 // The story around the tasks. Solving all of them brings Кляксын, who
-// steals the stars and the found colors; solving them again brings the
-// hedgehog, whose glade lost its colors too. Painting the glade back earns
-// the gold paint. Screens call `storyCheck` when they open.
+// drains the colors from the world, and right after him the hedgehog, whose
+// glade lost its colors too. Painting the glade brings the colors back and
+// earns the gold paint. Screens call `storyCheck` when they open.
 
 import { MIX_COLORS } from '../data';
 import { store } from '../storage';
@@ -11,19 +11,26 @@ import { scene, sceneOpen } from './cutscene';
 export const allSolved = () => MIX_COLORS.every((c) => store.stars(c.id) > 0);
 
 export interface StoryHooks {
-  /** shows the colors being drained from the screen, before they are reset */
+  /** shows the colors being drained from the screen */
   drain?(): Promise<void>;
-  /** redraws the screen after the theft */
+  /** redraws the screen, gray after the theft */
   refresh(): void;
 }
 
+let playing = false;
+
 /** Plays the next story scene if its moment has come; true if it did. */
 export function storyCheck(hooks: StoryHooks): boolean {
-  if (sceneOpen() || !allSolved()) return false;
-  if (store.story === 'none') {
-    void theft(hooks);
+  // the theft redraws the screen it runs on, which checks again
+  if (playing || sceneOpen()) return false;
+  if (store.story === 'none' && allSolved()) {
+    playing = true;
+    void theft(hooks)
+      .then(askForHelp)
+      .finally(() => (playing = false));
     return true;
   }
+  // the theft was seen, but the hedgehog was not (the game was closed between)
   if (store.story === 'stolen') {
     void askForHelp();
     return true;
@@ -39,20 +46,20 @@ async function theft(hooks: StoryHooks) {
     button: 'Ой-ой!',
   });
   await hooks.drain?.();
-  store.steal();
+  store.story = 'stolen';
   hooks.refresh();
   await scene({
     actor: 'klyaksa',
-    text: 'Ой! Злой Кляксын забрал все звёзды и цвета! Давай вернём их — пройди задания ещё раз!',
+    text: 'Ой! Злой Кляксын забрал все цвета! Кто же нам поможет?',
     voice: 'villain-after',
-    button: 'Вернём!',
+    button: 'Ой-ой-ой…',
   });
 }
 
 async function askForHelp() {
   await scene({
     actor: 'hedgehog',
-    text: 'Помоги мне, пожалуйста! Злой Кляксын забрал с моей полянки все цвета. Если поможешь, я тебя награжу!',
+    text: 'Помоги мне, пожалуйста! Злой Кляксын забрал все цвета, и с моей полянки тоже. Раскрась её, и цвета вернутся! А я тебя награжу.',
     voice: 'hedgehog-help',
     button: 'Помогу!',
   });
@@ -66,7 +73,7 @@ export async function gladeSaved() {
   store.story = 'saved';
   await scene({
     actor: 'hedgehog',
-    text: 'Ура! Моя полянка снова цветная! Спасибо тебе! Вот твоя награда — волшебная золотая краска!',
+    text: 'Ура! Моя полянка снова цветная, и все цвета вернулись! Спасибо тебе! Вот твоя награда — волшебная золотая краска!',
     voice: 'hedgehog-thanks',
     button: 'Ура!',
   });
