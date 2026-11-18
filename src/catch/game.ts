@@ -56,6 +56,9 @@ const MUD_HEX = '#6B4A2B';
 /** styles.css --display, for the floating labels. */
 const DISPLAY = 'Unbounded, "Arial Black", system-ui, sans-serif';
 const DROP = new Path2D(DROP_PATH);
+const DROP_SHINE = new Path2D();
+DROP_SHINE.ellipse(DROP_GLOSS.cx, DROP_GLOSS.cy, DROP_GLOSS.rx, DROP_GLOSS.ry, (DROP_GLOSS.deg * Math.PI) / 180, 0, Math.PI * 2);
+const DROP_SHINE_FILL = `rgba(255,255,255,${DROP_GLOSS.opacity})`;
 /** Клякса's height above the floor for its width. */
 const BODY_HEIGHT = (BODY_R + GROUND) / (2 * BODY_R);
 
@@ -148,11 +151,30 @@ export interface CatchOptions {
 
 interface Drop { kind: Kind; x: number; y: number; r: number; wob: number }
 interface Cloud { slot: number; x: number; release: number; next: Kind | null }
-interface Splat { x: number; r: number; hex: string; seed: number }
+/** Paint that missed the bucket; its puddle is drawn around (0, 0). */
+interface Splat { x: number; hex: string; path: Path2D }
 interface Particle { x: number; y: number; vx: number; vy: number; hex: string; t: number; r: number }
 interface Float { x: number; y: number; text: string; hex: string; t: number; big: boolean }
 
 const rand = (a: number, b: number) => a + Math.random() * (b - a);
+
+/** A closed wobbly loop around (x, y): `k` scales the radius by angle. */
+function wobbly(p: CanvasPath, x: number, y: number, rx: number, ry: number, k: (a: number) => number, steps = 40) {
+  for (let i = 0; i <= steps; i++) {
+    const a = (i / steps) * Math.PI * 2;
+    const px = x + Math.cos(a) * rx * k(a), py = y + Math.sin(a) * ry * k(a);
+    i ? p.lineTo(px, py) : p.moveTo(px, py);
+  }
+  p.closePath();
+}
+
+/** A puddle at `x` (share of the playfield), shaped once. */
+function splat(x: number, r: number, hex: string): Splat {
+  const seed = Math.random();
+  const path = new Path2D();
+  wobbly(path, 0, 0, r, r * 0.42, (a) => 1 + 0.18 * Math.sin(a * 7 + seed * 10) + 0.08 * Math.sin(a * 3 + seed * 4));
+  return { x, hex, path };
+}
 const any = <T>(list: readonly T[]) => list[Math.floor(Math.random() * list.length)];
 /** Keep the items that pass, in place, so a frame copies no arrays. */
 function prune<T>(list: T[], keep: (x: T) => boolean) {
@@ -465,7 +487,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
       q.x += q.vx * dt;
       q.y += q.vy * dt;
       if (q.y > groundY) {
-        if (Math.random() < 0.3) splats.push({ x: (q.x - OX) / PW, r: q.r * 1.3, hex: q.hex, seed: Math.random() });
+        if (Math.random() < 0.3) splats.push(splat((q.x - OX) / PW, q.r * 1.3, q.hex));
         q.t = 99;
       }
     }
@@ -545,7 +567,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
         if (phase !== 'play') return;
       } else if (d.y >= groundY) {
         d.y = Infinity;
-        splats.push({ x: d.x, r: d.r * 1.6, hex: kindHex(d.kind), seed: Math.random() });
+        splats.push(splat(d.x, d.r * 1.6, kindHex(d.kind)));
         if (d.kind !== 'mud' && fits(d.kind)) combo = 0;
       }
     }
@@ -585,30 +607,19 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
         if (f.spill) {
           burst(mouthX, groundY - 4, f.spill, 14, 0.8);
           for (let i = 0; i < 3; i++)
-            splats.push({ x: (mouthX - OX) / PW + f.dir * i * 0.03, r: rand(12, 20), hex: f.spill, seed: Math.random() });
+            splats.push(splat((mouthX - OX) / PW + f.dir * i * 0.03, rand(12, 20), f.spill));
         }
       } else if (f.vy > 0) f.vy = 0;
     }
   }
 
   // ---------- drawing ----------
-  function inkShadow(draw: () => void, dx: number, dy: number) {
+  function inkShadow(path: Path2D, dx: number, dy: number) {
     ctx.save();
     ctx.translate(dx, dy);
     ctx.fillStyle = INK;
-    draw();
-    ctx.fill();
+    ctx.fill(path);
     ctx.restore();
-  }
-
-  function wobbly(x: number, y: number, rx: number, ry: number, k: (a: number) => number, steps = 40) {
-    ctx.beginPath();
-    for (let i = 0; i <= steps; i++) {
-      const a = (i / steps) * Math.PI * 2;
-      const px = x + Math.cos(a) * rx * k(a), py = y + Math.sin(a) * ry * k(a);
-      i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
-    }
-    ctx.closePath();
   }
 
   /** A paint drop like the ones on the jars, its round part centered at (x, y). */
@@ -623,11 +634,8 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     ctx.lineJoin = 'round';
     ctx.strokeStyle = INK;
     ctx.stroke(DROP);
-    const g = DROP_GLOSS;
-    ctx.fillStyle = `rgba(255,255,255,${g.opacity})`;
-    ctx.beginPath();
-    ctx.ellipse(g.cx, g.cy, g.rx, g.ry, (g.deg * Math.PI) / 180, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.fillStyle = DROP_SHINE_FILL;
+    ctx.fill(DROP_SHINE);
     ctx.restore();
   }
 
@@ -635,8 +643,8 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     const x = OX + d.x * PW + Math.sin(time * 6 + d.wob) * 1.5;
     if (d.kind !== 'mud') return paintDrop(x, d.y, d.r, d.kind.hex);
     const r = d.r * 1.15;
-    const shape = () => wobbly(x, d.y, r, r, (a) => 1 + 0.16 * Math.sin(a * 5 + d.wob + time * 4), 24);
-    shape();
+    ctx.beginPath();
+    wobbly(ctx, x, d.y, r, r, (a) => 1 + 0.16 * Math.sin(a * 5 + d.wob + time * 4), 24);
     ctx.fillStyle = MUD_HEX;
     ctx.fill();
     ctx.lineWidth = 3.5;
@@ -679,21 +687,17 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
         ctx.stroke();
       } else paintDrop(x, y + s * 0.55 + r * 1.1, r, c.next.hex);
     }
-    const puff = () => {
-      ctx.beginPath();
-      ctx.arc(x - s * 0.95, y + s * 0.2, s * 0.7, 0, Math.PI * 2);
-      ctx.arc(x - s * 0.15, y - s * 0.3, s * 0.95, 0, Math.PI * 2);
-      ctx.arc(x + s * 0.8, y + s * 0.05, s * 0.8, 0, Math.PI * 2);
-      ctx.rect(x - s * 0.95, y + s * 0.2, s * 1.75, s * 0.7);
-    };
+    const puff = new Path2D();
+    puff.arc(x - s * 0.95, y + s * 0.2, s * 0.7, 0, Math.PI * 2);
+    puff.arc(x - s * 0.15, y - s * 0.3, s * 0.95, 0, Math.PI * 2);
+    puff.arc(x + s * 0.8, y + s * 0.05, s * 0.8, 0, Math.PI * 2);
+    puff.rect(x - s * 0.95, y + s * 0.2, s * 1.75, s * 0.7);
     inkShadow(puff, 3, 5);
     ctx.lineWidth = 4;
     ctx.strokeStyle = INK;
-    puff();
-    ctx.stroke();
+    ctx.stroke(puff);
     ctx.fillStyle = CARD;
-    puff();
-    ctx.fill(); // over the stroke, so the arcs inside vanish
+    ctx.fill(puff); // over the stroke, so the arcs inside vanish
     // a face like Клякса's
     ctx.fillStyle = 'rgba(255,152,167,.55)';
     for (const e of [-0.62, 0.42]) {
@@ -712,35 +716,32 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
   function drawShelf(groundY: number) {
     const { shelfX0: x0, shelfX1: x1 } = L;
     const y = groundY, h = PLANK;
-    const plank = () => {
-      ctx.beginPath();
-      ctx.roundRect(x0, y, x1 - x0, h, 14);
-    };
+    const plank = new Path2D();
+    plank.roundRect(x0, y, x1 - x0, h, 14);
     inkShadow(plank, 0, 6);
     const g = ctx.createLinearGradient(0, y, 0, y + h);
     g.addColorStop(0, '#F0B47B');
     g.addColorStop(1, '#EAA66A');
-    plank();
     ctx.fillStyle = g;
-    ctx.fill();
+    ctx.fill(plank);
     ctx.save();
-    plank();
-    ctx.clip();
+    ctx.clip(plank);
     ctx.fillStyle = 'rgba(43,35,64,.12)';
     for (let px = x0 + 120; px < x1; px += 123) ctx.fillRect(px, y, 3, h);
     ctx.fillStyle = 'rgba(43,35,64,.08)';
     ctx.fillRect(x0, y + h * 0.45, x1 - x0, h * 0.07);
     // paint that missed the bucket stays on the shelf
     for (const s of splats) {
-      wobbly(OX + s.x * PW, y + 3, s.r, s.r * 0.42, (a) => 1 + 0.18 * Math.sin(a * 7 + s.seed * 10) + 0.08 * Math.sin(a * 3 + s.seed * 4));
+      const sx = OX + s.x * PW;
+      ctx.translate(sx, y + 3);
       ctx.fillStyle = s.hex;
-      ctx.fill();
+      ctx.fill(s.path);
+      ctx.translate(-sx, -y - 3);
     }
     ctx.restore();
-    plank();
     ctx.lineWidth = 4;
     ctx.strokeStyle = INK;
-    ctx.stroke();
+    ctx.stroke(plank);
   }
 
   function drawMouse(groundY: number) {
