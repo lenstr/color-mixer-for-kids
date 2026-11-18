@@ -840,12 +840,17 @@ svg {
 /* ---------- shelf & jars ---------- */
 
 .shelf {
+  --tool-size: clamp(54px, 6vw, 66px);
+  --shelf-gap: clamp(8px, 1.6vw, 22px);
+  /* what the jars share: the shelf without the tools beside them */
+  --jar-room: calc(100cqw - 2 * (var(--tool-size) + var(--shelf-gap)));
   grid-area: shelf;
   position: relative;
+  container-type: inline-size;
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  gap: clamp(8px, 1.6vw, 22px);
+  gap: var(--shelf-gap);
   padding: 0 10px 22px;
 }
 .shelf::after {
@@ -866,13 +871,21 @@ svg {
   z-index: -1;
 }
 .jars {
+  --jar-gap: clamp(4px, 1.4vw, 18px);
   display: flex;
   align-items: flex-end;
-  gap: clamp(4px, 1.4vw, 18px);
+  gap: var(--jar-gap);
 }
+/* Each layout sets --jar, the width of one of five jars. Any other count
+   (--jars, from jarShelf) shares the room, and never takes more of it
+   than five jars would, so a sixth jar fits wherever five do. */
 .jar {
+  --jar: clamp(76px, min(11vw, 15dvh), 124px);
   position: relative;
-  width: clamp(76px, min(11vw, 15dvh), 124px);
+  width: min(
+    var(--jar),
+    (max(var(--jar-room), 5 * var(--jar) + 4 * var(--jar-gap) + 1px) - (var(--jars) - 1) * var(--jar-gap)) / var(--jars)
+  );
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -997,8 +1010,8 @@ svg {
   transition: opacity 0.2s, transform 0.15s;
 }
 .tool svg {
-  width: clamp(54px, 6vw, 66px);
-  height: clamp(54px, 6vw, 66px);
+  width: var(--tool-size);
+  height: var(--tool-size);
   padding: 13px;
   border-radius: 50%;
   background: var(--card);
@@ -1456,7 +1469,7 @@ svg {
   }
   .studio-card .btn-hint { height: 54px; }
   .stage-blob { width: min(100cqw, (100cqh - var(--readout-h)) * 1.2, 540px); }
-  .jar { width: clamp(70px, min(14vw, 12dvh), 136px); }
+  .jar { --jar: clamp(70px, min(14vw, 12dvh), 136px); }
   .bubble { right: 0; top: -6%; font-size: 17px; max-width: 220px; }
 }
 
@@ -1464,14 +1477,15 @@ svg {
   .screen { padding-left: 12px; padding-right: 12px; }
   .icon-btn { width: 46px; height: 46px; border-width: 3.5px; box-shadow: 0 4px 0 var(--ink); }
   .icon-btn svg { width: 22px; height: 22px; }
-  .shelf { padding: 0 2px 18px; gap: 4px; }
-  /* not enough room beside the jars: tools float above the shelf corners */
+  /* not enough room beside the jars: tools float above the shelf corners,
+     and the jars get the whole shelf */
+  .shelf { --jar-room: 100cqw; padding: 0 2px 18px; gap: 4px; }
   .tool { position: absolute; bottom: calc(100% + 12px); margin: 0; }
   .tool[data-tool='undo'] { left: 0; }
   .tool[data-tool='pour'] { right: 0; }
   .tool span { display: none; }
   .tool svg { width: 52px; height: 52px; padding: 12px; }
-  .jar { width: min(17vw, 86px); }
+  .jar { --jar: min(17vw, 86px); }
   .jar-label { font-size: 10px; padding: 2px 6px; border-width: 2.5px; }
   .eq-chip { height: 44px; font-size: 17px; }
   .eq-chip svg { width: 24px; height: 30px; }
@@ -1531,7 +1545,7 @@ svg {
   .readout { min-height: 0; gap: 4px; }
   .readout-name { font-size: 22px; }
   .eq-chip { height: 40px; }
-  .jar { width: min(10vw, 17dvh, 90px); }
+  .jar { --jar: min(10vw, 17dvh, 90px); }
   .tool span { display: none; }
   .topbar { min-height: 48px; }
   .topbar-title { font-size: 20px; }
@@ -2282,6 +2296,4 @@ label.parent-row { cursor: pointer; }
   .quest-hero { width: 84px; }
   .quest-thumb { grid-column: 1 / -1; justify-self: center; width: 70%; }
   .quest-text b { font-size: 20px; }
-  /* six jars once the gold one joins the shelf */
-  .jars:has(.jar.is-gold) .jar { width: min(14.4vw, 86px); }
 }

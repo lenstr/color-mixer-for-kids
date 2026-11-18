@@ -1,13 +1,13 @@
 // Paint jar illustration.
 
 import type { PaintInfo } from './data';
-import { shade } from './color';
+import { type Pigment, shade } from './color';
 import { icon } from './icons';
 import { CARD, INK } from './palette';
 import { html } from './ui';
 
 /** A paint jar button; `onSqueeze` runs on press (not release) so fast taps feel instant. */
-export function jarButton(p: PaintInfo, i: number, onSqueeze: () => void) {
+function jarButton(p: PaintInfo, i: number, onSqueeze: () => void) {
   const b = html<HTMLButtonElement>(`
     <button class="jar${p.id === 'gold' ? ' is-gold' : ''}" style="--paint:${p.hex}; --i:${i}" aria-label="${p.name} краска">
       ${jarSVG(p)}
@@ -25,6 +25,21 @@ export function jarButton(p: PaintInfo, i: number, onSqueeze: () => void) {
     }
   });
   return b;
+}
+
+/**
+ * Fills `el` with a jar per paint and sets `--jars`, so the jars share the
+ * shelf whatever their count. Returns the jars by pigment.
+ */
+export function jarShelf(el: HTMLElement, paints: PaintInfo[], onSqueeze: (p: Pigment) => void) {
+  el.style.setProperty('--jars', String(paints.length));
+  const jars = new Map<Pigment, HTMLButtonElement>();
+  paints.forEach((p, i) => {
+    const b = jarButton(p, i, () => onSqueeze(p.id));
+    jars.set(p.id, b);
+    el.append(b);
+  });
+  return jars;
 }
 
 /**

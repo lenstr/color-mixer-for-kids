@@ -2,7 +2,7 @@ import { type Drops, type Pigment, PIGMENTS, distance, emptyDrops, mixHex, total
 import { MATCH, MAX_DROPS, MIX_COLORS, NEAR, PAINTS, PAINT_BY_ID, colorLabel, nearest, shelfPaints, suggest } from '../data';
 import { PaintBlob } from '../blob';
 import { swatchSVG } from '../blob';
-import { dropSVG, jarButton } from '../jar';
+import { dropSVG, jarShelf } from '../jar';
 import { clearEffects, flyDrop, jarMouth, splash } from '../effects';
 import { icon, starSVG } from '../icons';
 import { sfx } from '../audio';
@@ -86,14 +86,9 @@ export function mixerScreen(levelIndex: number | null): Screen {
   blob.setBaseMood('hungry');
 
   // ---------- jars ----------
-  const jarBtns = new Map<Pigment, HTMLButtonElement>();
   // tasks never need gold, so it stays in the studio
   const shelf = isLevel ? PAINTS : shelfPaints(store.gold);
-  shelf.forEach((p, i) => {
-    const b = jarButton(p, i, () => addDrop(p.id, b));
-    jarBtns.set(p.id, b);
-    jarsEl.append(b);
-  });
+  const jarBtns = jarShelf(jarsEl, shelf, (p) => addDrop(p, jarBtns.get(p)!));
 
   // ---------- side panel ----------
   let meterFill: HTMLElement | null = null;

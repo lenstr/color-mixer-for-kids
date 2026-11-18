@@ -22,7 +22,7 @@ import { emptyFill, pictureSVG, rasterize } from '../coloring/render';
 import { type Anchor, anchors } from '../coloring/anchors';
 import { MODES, isComplete, isPerfect } from '../coloring/rules';
 import { PaintBlob, swatchSVG } from '../blob';
-import { jarButton } from '../jar';
+import { jarShelf } from '../jar';
 import { type Point, clearEffects, flyDrop, jarMouth, reduced, splash } from '../effects';
 import { icon } from '../icons';
 import { sfx } from '../audio';
@@ -411,13 +411,8 @@ export function paintScreen(pic: Picture, story?: PaintStory): Screen {
 
   // ---------- brush ----------
 
-  const jarBtns = new Map<Pigment, HTMLButtonElement>();
   const shelf = shelfPaints(store.gold);
-  shelf.forEach((p, i) => {
-    const b = jarButton(p, i, () => addDrop(p.id, b));
-    jarBtns.set(p.id, b);
-    jarsEl.append(b);
-  });
+  const jarBtns = jarShelf(jarsEl, shelf, (p) => addDrop(p, jarBtns.get(p)!));
 
   function addDrop(p: Pigment, jar: HTMLElement) {
     if (totalDrops(drops) >= MAX_DROPS) {
