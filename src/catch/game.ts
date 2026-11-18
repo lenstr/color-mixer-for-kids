@@ -165,7 +165,6 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
   let combo = 0;
   let stage = LEVELS[0];
   let upcoming: CatchLevel | null = null;
-  let target = stage.target;
   let bucket: Drops = emptyDrops(); // the paint, for its color when it spills
   let caught: Partial<Record<DropId, number>> = {};
   let bx = 0.5; // bucket center, share of the playfield
@@ -197,7 +196,9 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
   let swirls: { dx: number; t: number; hex: string; spin: number }[] = [];
   let splashes: { dx: number; y: number; vx: number; vy: number; r: number; hex: string }[] = [];
   let bumpT = 9; // seconds since a drop hit the paint; the bucket squashes and springs back
-  function clearShown() {
+  function emptyBucket() {
+    bucket = emptyDrops();
+    caught = {};
     shown = emptyDrops();
     shownN = 0;
     shownFill = 0;
@@ -222,7 +223,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
   const levelFor = (n: number) => LEVELS[n - 1] ?? any(LEVELS);
   const recipe = (): RecipePart[] =>
     [...new Set(stage.drops)].map((d) => ({ hex: d.hex, name: d.name, need: need(d.id), got: caught[d.id] ?? 0 }));
-  const snapshot = (): Hud => ({ level, target, recipe: recipe(), score, lives });
+  const snapshot = (): Hud => ({ level, target: stage.target, recipe: recipe(), score, lives });
   const hud = () => opts.on({ type: 'hud', hud: snapshot() });
 
   // ---------- layout ----------
@@ -235,10 +236,11 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     canvas.height = Math.round(H * dpr);
     PW = Math.min(W, H * 0.95);
     OX = (W - PW) / 2;
+    L = layout();
   }
   const PLANK = 30;
-  const groundSpan = () => L().groundY - L().cloudY;
-  const L = () => {
+  /** Where things stand, in canvas CSS pixels; it changes only on resize. */
+  function layout() {
     const cloudY = Math.max(40, Math.min(56, PW * 0.1));
     const groundY = H - PLANK - 10;
     const bw = Math.max(64, BUCKET * PW);
@@ -247,17 +249,18 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     const bBot = groundY - bw * BODY_HEIGHT + 3;
     const bTop = bBot - bh;
     const dropR = Math.max(10, Math.min(19, PW * 0.03));
-    return { cloudY, groundY, bw, bh, bTop, bBot, dropR };
-  };
+    // the shelf spans the playfield, so on wide screens it shows where to play
+    const shelfX0 = Math.max(4, OX - 24);
+    const shelfX1 = Math.min(W - 4, OX + PW + 24);
+    return { cloudY, groundY, bw, bh, bTop, bBot, dropR, shelfX0, shelfX1 };
+  }
+  let L = layout();
 
   // ---------- rules ----------
   function setupLevel() {
     stage = upcoming ?? levelFor(level);
     upcoming = null;
-    target = stage.target;
-    bucket = emptyDrops();
-    caught = {};
-    clearShown();
+    emptyBucket();
     drops = [];
     clouds = Array.from({ length: CLOUDS }, (_, i) => ({ slot: i / CLOUDS, x: i / CLOUDS, release: 0, next: null }));
     spawnT = -0.6;
@@ -281,7 +284,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     phase = 'play';
     phaseT = 0;
     paused = false;
-    opts.on({ type: 'level', target, first: true });
+    opts.on({ type: 'level', target: stage.target, first: true });
     hud();
   }
 
@@ -303,17 +306,20 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
   const label = (text: string, hex: string, x: number, y: number, big = false) =>
     floats.push({ text, hex, x, y, t: 0, big });
 
-  function spoil(why: 'mud' | 'extra', text: string) {
-    const { bTop } = L();
+  /** Empty the bucket with a splash of its paint; returns the paint's color. */
+  function spill(n: number, power: number) {
     const hex = mixHex(bucket);
-    if (hex) burst(OX + bx * PW, bTop, hex, 16, 1.1);
-    bucket = emptyDrops();
-    caught = {};
-    clearShown();
-    lives--;
+    if (hex) burst(OX + bx * PW, L.bTop, hex, n, power);
+    emptyBucket();
     combo = 0;
+    return hex;
+  }
+
+  function spoil(why: 'mud' | 'extra', text: string) {
+    const hex = spill(16, 1.1);
+    lives--;
     if (!opts.calm) shakeT = 0.3;
-    label(text, '#E8273F', bx, bTop - 34, true);
+    label(text, '#E8273F', bx, L.bTop - 34, true);
     const over = lives <= 0;
     opts.on({ type: 'spoil', why, over });
     hud();
@@ -331,13 +337,8 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
 
   function pour() {
     if (phase !== 'play' || paused || !caughtN()) return;
-    const { bTop } = L();
-    burst(OX + bx * PW, bTop, mixHex(bucket)!, 10, 0.7);
-    bucket = emptyDrops();
-    caught = {};
-    clearShown();
-    combo = 0;
-    label('Вылили', CARD, bx, bTop - 34);
+    spill(10, 0.7);
+    label('Вылили', CARD, bx, L.bTop - 34);
     opts.on({ type: 'pour' });
     hud();
   }
@@ -350,11 +351,11 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     for (const p of PIGMENTS) bucket[p] += k.recipe[p];
     if (!fit) return spoil('extra', `Лишняя ${k.name.toLowerCase()}!`);
     caught[k.id] = (caught[k.id] ?? 0) + 1;
-    const { bTop, bh, bw } = L();
+    const { bTop, bh, bw } = L;
     combo++;
     // the drop keeps falling, now inside the bucket
     const dx = Math.max(-bw * 0.3, Math.min(bw * 0.3, (d.x - bx) * PW));
-    sinking.push({ dx, y: -bh + bw * 0.05, vy: FALL * (groundSpan()) * 1.2, r: d.r, kind: k, combo });
+    sinking.push({ dx, y: -bh + bw * 0.05, vy: FALL * (L.groundY - L.cloudY) * 1.2, r: d.r, kind: k, combo });
     const pts = 10 * Math.min(combo, 5);
     score += pts;
     label(combo > 1 ? `+${pts} ×${Math.min(combo, 5)}` : `+${pts}`, '#FFD21F', d.x, bTop - 22);
@@ -366,8 +367,8 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
   function win() {
     const bonus = 100 * level;
     score += bonus;
-    const { bTop } = L();
-    burst(OX + bx * PW, bTop, target.hex, 30, 1.6);
+    const { bTop } = L;
+    burst(OX + bx * PW, bTop, stage.target.hex, 30, 1.6);
     label(`+${bonus}`, '#FFD21F', bx, bTop - 60, true);
     phase = 'won';
     phaseT = 0;
@@ -375,12 +376,12 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     hops = 2;
     hopWait = 0.32; // the last drop lands first
     upcoming = levelFor(level + 1);
-    opts.on({ type: 'win', target, next: upcoming.target });
+    opts.on({ type: 'win', target: stage.target, next: upcoming.target });
   }
 
   // ---------- paint in the bucket ----------
   function updatePaint(dt: number) {
-    const { bw, bh } = L();
+    const { bw, bh } = L;
     const inner = bh - bw * 0.13;
     const surface = -inner * shownFill; // relative to the bucket's bottom
     for (const d of sinking) {
@@ -426,7 +427,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
       hopWait -= dt;
       if (hopWait <= 0 && hops > 0) {
         hops--;
-        hopV = -Math.sqrt(2 * HOP_G * L().bw * (hops ? 0.55 : 0.35)); // the second hop is smaller
+        hopV = -Math.sqrt(2 * HOP_G * L.bw * (hops ? 0.55 : 0.35)); // the second hop is smaller
       }
       return;
     }
@@ -449,7 +450,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     slosh = Math.max(0, slosh - dt * 1.5);
     updateHop(dt);
     updatePaint(dt);
-    const { cloudY, groundY, bw, bTop } = L();
+    const { cloudY, groundY, bw, bTop } = L;
 
     for (const q of parts) {
       q.t += dt;
@@ -475,7 +476,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
       level++;
       setupLevel();
       phase = 'play';
-      opts.on({ type: 'level', target, first: false });
+      opts.on({ type: 'level', target: stage.target, first: false });
       hud();
     }
     if (phase === 'play' || phase === 'won') {
@@ -490,7 +491,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
       if (mouse) {
         const m = mouse;
         m.x += m.dir * 0.3 * dt; // share of the shelf per second
-        const [x0, x1] = shelfEnds();
+        const { shelfX0: x0, shelfX1: x1 } = L;
         const mop = (x0 + m.x * (x1 - x0) + m.dir * Math.max(14, PW * 0.035) * 2 - OX) / PW;
         splats = splats.filter((s) => (m.dir === 1 ? s.x > mop : s.x < mop));
         if (m.x < -0.12 || m.x > 1.12) mouse = null;
@@ -514,7 +515,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
       if (c.release > 0) continue;
       c.release = 0;
       const x = Math.max(0.06, Math.min(0.94, c.x));
-      drops.push({ kind: c.next!, x, y: cloudY + 30, r: L().dropR, wob: rand(0, 6) });
+      drops.push({ kind: c.next!, x, y: cloudY + 30, r: L.dropR, wob: rand(0, 6) });
     }
     spawnT += dt;
     if (spawnT >= SPAWN * Math.max(0.35, 1 - SPAWN_GROWTH * (level - 1))) {
@@ -546,13 +547,13 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
 
   /** Corners of the bucket around its bottom center, for the fall. */
   function bucketCorners() {
-    const { bw, bh } = L();
+    const { bw, bh } = L;
     return [[-bw / 2, -bh], [bw / 2, -bh], [-bw * 0.39, 0], [bw * 0.39, 0]];
   }
 
   function updateFall(dt: number) {
     const f = fall!;
-    const { groundY, bBot } = L();
+    const { groundY, bBot } = L;
     f.vy += 1500 * dt;
     f.dx += f.vx * dt;
     f.dy += f.vy * dt;
@@ -573,7 +574,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
         opts.on({ type: 'thud' });
         if (!opts.calm) shakeT = 0.25;
         // what was left in it spills over the shelf
-        const mouthX = OX + bx * PW + f.dx + f.dir * L().bw * 0.6;
+        const mouthX = OX + bx * PW + f.dx + f.dir * L.bw * 0.6;
         if (f.spill) {
           burst(mouthX, groundY - 4, f.spill, 14, 0.8);
           for (let i = 0; i < 3; i++)
@@ -660,7 +661,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     const s = Math.max(15, Math.min(24, PW * 0.042)) * grow;
     // the coming drop swells under the cloud while it trembles
     if (c.release && c.next) {
-      const r = L().dropR * (0.35 + 0.65 * (1 - c.release / TREMBLE));
+      const r = L.dropR * (0.35 + 0.65 * (1 - c.release / TREMBLE));
       if (c.next === 'mud') {
         ctx.fillStyle = MUD_HEX;
         ctx.strokeStyle = INK;
@@ -701,11 +702,8 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     }
   }
 
-  /** The shelf spans the playfield, so on wide screens it shows where to play. */
-  const shelfEnds = () => [Math.max(4, OX - 24), Math.min(W - 4, OX + PW + 24)];
-
   function drawShelf(groundY: number) {
-    const [x0, x1] = shelfEnds();
+    const { shelfX0: x0, shelfX1: x1 } = L;
     const y = groundY, h = PLANK;
     const plank = () => {
       ctx.beginPath();
@@ -742,7 +740,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     if (!mouse) return;
     const s = Math.max(14, Math.min(22, PW * 0.035));
     ctx.save();
-    const [x0, x1] = shelfEnds();
+    const { shelfX0: x0, shelfX1: x1 } = L;
     ctx.translate(x0 + mouse.x * (x1 - x0), groundY - 1 - Math.abs(Math.sin(time * 18)) * 3);
     ctx.scale(mouse.dir, 1); // drawn facing right
     ctx.lineJoin = 'round';
@@ -805,8 +803,8 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
 
   /** The bucket on Клякса's head, filled with the mix so far. */
   function drawBucket() {
-    const { bw, bh } = L();
-    const bTop = L().bTop + hop, bBot = L().bBot + hop;
+    const { bw, bh } = L;
+    const bTop = L.bTop + hop, bBot = L.bBot + hop;
     const x = OX + bx * PW;
     const tw = bw / 2, bwb = bw * 0.39, rr = bw * 0.1;
     const rimH = bw * 0.13;
@@ -968,7 +966,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
   }
 
   function draw() {
-    const { cloudY, groundY, bTop } = L();
+    const { cloudY, groundY, bTop } = L;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, W, H);
     if (shakeT) ctx.translate(Math.sin(time * 80) * 6 * (shakeT / 0.3), 0);
@@ -1005,9 +1003,9 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     opts.frame({
       x: OX + bx * PW,
       groundY,
-      width: L().bw,
+      width: L.bw,
       look: next ? { x: OX + next.x * PW, y: next.y } : null,
-      shelfRight: shelfEnds()[1],
+      shelfRight: L.shelfX1,
       hop,
     });
   }
