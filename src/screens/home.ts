@@ -6,6 +6,7 @@ import { sfx } from '../audio';
 import { say, speaking } from '../speech';
 import { store } from '../storage';
 import { canInstall, install, onInstallChange } from '../install';
+import { closeParentPanel, parentButton } from '../parents';
 import { $, type Screen, go, html } from '../ui';
 
 const LOGO = 'Клякса';
@@ -79,6 +80,9 @@ export function homeScreen(): Screen {
     blob.eat(c.hex, c.hex);
   }, 2600);
 
+  // Progress shown on the menu may change, so redraw the whole screen.
+  $(root, '.home-topright').prepend(parentButton(() => go({ name: 'home' })));
+
   const soundBtn = $(root, '[data-sound]');
   const paintSound = () => {
     soundBtn.innerHTML = store.sound ? icon.soundOn : icon.soundOff;
@@ -112,6 +116,7 @@ export function homeScreen(): Screen {
       clearInterval(cycle);
       blob.destroy();
       offInstall();
+      closeParentPanel();
     },
   };
 }

@@ -4,16 +4,21 @@ interface Saved {
   stars: Record<string, number>; // level color id -> 1..3
   discovered: string[]; // collectible color ids
   sound: boolean;
+  unlockAll: boolean; // parent setting: every level is open
 }
 
 function load(): Saved {
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) return { stars: {}, discovered: [], sound: true, ...JSON.parse(raw) };
+    if (raw) return { ...fresh(), ...JSON.parse(raw) };
   } catch {
     /* private mode or corrupted — start fresh */
   }
-  return { stars: {}, discovered: [], sound: true };
+  return fresh();
+}
+
+function fresh(): Saved {
+  return { stars: {}, discovered: [], sound: true, unlockAll: false };
 }
 
 const data = load();
@@ -32,6 +37,13 @@ export const store = {
   },
   set sound(v: boolean) {
     data.sound = v;
+    save();
+  },
+  get unlockAll() {
+    return data.unlockAll;
+  },
+  set unlockAll(v: boolean) {
+    data.unlockAll = v;
     save();
   },
   stars(id: string): number {
@@ -58,6 +70,7 @@ export const store = {
   discoveredCount(): number {
     return data.discovered.length;
   },
+  /** Forgets stars and found colors; settings stay. */
   reset() {
     data.stars = {};
     data.discovered = [];

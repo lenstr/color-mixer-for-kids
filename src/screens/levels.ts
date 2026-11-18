@@ -6,7 +6,18 @@ import { say } from '../speech';
 import { store } from '../storage';
 import { type Screen, go, html, topBar } from '../ui';
 
-export const isUnlocked = (i: number) => i === 0 || store.stars(MIX_COLORS[i - 1].id) > 0;
+/** How many unsolved levels past the furthest solved one stay open, so a kid stuck on one can try another. */
+const OPEN_AHEAD = 3;
+
+export function isUnlocked(i: number) {
+  if (!MIX_COLORS[i]) return false;
+  if (store.unlockAll || store.stars(MIX_COLORS[i].id) > 0) return true;
+  let furthest = -1;
+  MIX_COLORS.forEach((c, k) => {
+    if (store.stars(c.id) > 0) furthest = k;
+  });
+  return i <= furthest + OPEN_AHEAD;
+}
 
 export function levelsScreen(): Screen {
   const root = html(`<section class="screen levels"></section>`);
@@ -16,10 +27,11 @@ export function levelsScreen(): Screen {
   );
 
   const grid = html(`<div class="level-grid"></div>`);
+  const next = MIX_COLORS.findIndex((c) => !store.stars(c.id));
   MIX_COLORS.forEach((c, i) => {
     const open = isUnlocked(i);
     const stars = store.stars(c.id);
-    const current = open && !stars;
+    const current = i === next;
     const tile = html<HTMLButtonElement>(`
       <button class="level-tile ${open ? '' : 'is-locked'} ${current ? 'is-current' : ''} ${stars ? 'is-done' : ''}"
         style="--c:${c.hex}; --i:${i}" ${open ? '' : 'disabled'}

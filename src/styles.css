@@ -1554,3 +1554,87 @@ svg {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ==========================================================================
+   PARENT PANEL
+   ========================================================================== */
+
+@property --hold {
+  syntax: '<percentage>';
+  inherits: false;
+  initial-value: 0%;
+}
+.parent-btn {
+  position: relative;
+  color: var(--ink-2);
+  background: conic-gradient(var(--yellow) var(--hold), var(--card) 0);
+}
+.parent-btn.is-holding { animation: parent-hold 1.5s linear both; }
+@keyframes parent-hold {
+  to { --hold: 100%; }
+}
+.parent-tip {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  padding: 6px 12px;
+  border-radius: 99px;
+  background: var(--ink);
+  color: var(--card);
+  font-size: 14px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+}
+.parent-btn.is-tipped .parent-tip { animation: parent-tip 2.2s both; }
+@keyframes parent-tip {
+  10%, 80% { opacity: 1; }
+}
+
+.parent-card {
+  width: min(520px, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 26px 28px 28px;
+  border-radius: 34px;
+  background: var(--card);
+  border: var(--line) solid var(--ink);
+  box-shadow: 12px 12px 0 var(--ink);
+  animation: modal-in 0.4s var(--bounce) both;
+}
+.parent-title {
+  margin: 0;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 28px;
+}
+.parent-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 20px;
+  background: var(--paper);
+}
+label.parent-row { cursor: pointer; }
+.parent-row input {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  accent-color: var(--green);
+}
+.parent-row > span { display: flex; flex-direction: column; flex: 1; gap: 2px; }
+.parent-row b { font-size: 18px; }
+.parent-row small { color: var(--ink-2); font-size: 14px; }
+.parent-row .btn { height: 48px; padding: 0 18px; font-size: 15px; box-shadow: 0 4px 0 var(--ink); }
+.btn-danger { background: var(--red); color: var(--card); }
+.parent-row .btn[hidden] { display: none; }
+.parent-card > .btn-primary { align-self: flex-end; }
+@media (max-width: 520px) {
+  .parent-card { padding: 20px 18px 22px; }
+  .parent-reset { flex-wrap: wrap; }
+  .parent-reset > span { flex-basis: 100%; }
+}
