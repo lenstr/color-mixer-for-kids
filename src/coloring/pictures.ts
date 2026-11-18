@@ -3,6 +3,8 @@
 // them that cannot be painted. A region's `target` is the id of the color
 // it really is (see data.ts); hints and the "task" mode compare against it.
 
+import { INK } from '../palette';
+
 export interface Region {
   id: string;
   target: string;
@@ -54,7 +56,6 @@ const ground = (y: number) => `M0 ${y}C120 ${y - 16} 280 ${y - 16} 400 ${y}V400H
 
 // ---------- decoration helpers ----------
 
-const INK = '#2B2340';
 const line = (d: string, w = 5) =>
   `<path d="${d}" fill="none" stroke="${INK}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/>`;
 const gloss = (d: string, w = 11) =>

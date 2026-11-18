@@ -8,6 +8,7 @@ import { PaintBlob, swatchSVG } from '../blob';
 import { dropSVG } from '../jar';
 import { reduced } from '../effects';
 import { icon } from '../icons';
+import { CARD, INK } from '../palette';
 import { sfx } from '../audio';
 import { say, speaking } from '../speech';
 import { store } from '../storage';
@@ -21,9 +22,9 @@ const buzz = (pattern: number | number[]) => {
 };
 
 const heartSVG = (on: boolean) =>
-  `<svg viewBox="0 0 24 24" class="${on ? '' : 'is-lost'}" aria-hidden="true"><path d="M12 20.5s-8.5-5.2-8.5-11a4.6 4.6 0 0 1 8.5-2.5 4.6 4.6 0 0 1 8.5 2.5c0 5.8-8.5 11-8.5 11z" fill="${on ? '#E8273F' : 'none'}" stroke="#2B2340" stroke-width="2.4" stroke-linejoin="round"/></svg>`;
+  `<svg viewBox="0 0 24 24" class="${on ? '' : 'is-lost'}" aria-hidden="true"><path d="M12 20.5s-8.5-5.2-8.5-11a4.6 4.6 0 0 1 8.5-2.5 4.6 4.6 0 0 1 8.5 2.5c0 5.8-8.5 11-8.5 11z" fill="${on ? '#E8273F' : 'none'}" stroke="${INK}" stroke-width="2.4" stroke-linejoin="round"/></svg>`;
 
-const mudSVG = `<svg viewBox="-20 -20 40 40" aria-hidden="true"><path d="M0 -15 C8 -17 10 -9 15 -6 C19 0 14 6 13 11 C9 17 2 13 -3 15 C-10 17 -12 9 -15 5 C-18 -2 -13 -6 -10 -11 C-7 -16 -4 -14 0 -15Z" fill="#6B4A2B" stroke="#2B2340" stroke-width="3.5" stroke-linejoin="round"/><path d="M-9 -4l5 5M-4 -4l-5 5M4 -4l5 5M9 -4l-5 5" stroke="#FFFDF7" stroke-width="2.4" stroke-linecap="round"/></svg>`;
+const mudSVG = `<svg viewBox="-20 -20 40 40" aria-hidden="true"><path d="M0 -15 C8 -17 10 -9 15 -6 C19 0 14 6 13 11 C9 17 2 13 -3 15 C-10 17 -12 9 -15 5 C-18 -2 -13 -6 -10 -11 C-7 -16 -4 -14 0 -15Z" fill="#6B4A2B" stroke="${INK}" stroke-width="3.5" stroke-linejoin="round"/><path d="M-9 -4l5 5M-4 -4l-5 5M4 -4l5 5M9 -4l-5 5" stroke="${CARD}" stroke-width="2.4" stroke-linecap="round"/></svg>`;
 
 export function catchScreen(): Screen {
   const root = html(`<section class="screen catch"></section>`);

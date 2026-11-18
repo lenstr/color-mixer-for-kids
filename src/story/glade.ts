@@ -2,6 +2,7 @@
 // page painted in the task mode, without hints, to win the gold paint.
 
 import { type Picture, SKY, circle, dot, ellipse, gloss, grass, line, n, rays, rect } from '../coloring/pictures';
+import { INK } from '../palette';
 import { hedgehogPaths } from './characters';
 
 /** A cloud: a flat bottom with three bumps on top. */
@@ -56,14 +57,14 @@ export const GLADE: Picture = {
     rays(334, 70, 44, 60, 10) +
     gloss('M64 124C70 114 82 108 94 108', 9) +
     // the hedgehog's eye, cheek, nose, smile, feet and needles
-    `<ellipse cx="248" cy="302" rx="4.5" ry="5.5" fill="#2B2340"/>` +
+    `<ellipse cx="248" cy="302" rx="4.5" ry="5.5" fill="${INK}"/>` +
     dot(249.5, 300, 1.7, '#fff') +
     `<ellipse cx="252" cy="315" rx="6.5" ry="4" fill="#FF98A7" opacity=".75"/>` +
     dot(276, 308, 5) +
     line('M257 320Q263 325 269 319', 3.5) +
     line('M185 293l7 -9M202 286l4 -11M220 285l1 -11', 3.5) +
-    `<ellipse cx="203" cy="336" rx="9" ry="5.5" fill="#F6C9A0" stroke="#2B2340" stroke-width="4"/>` +
-    `<ellipse cx="235" cy="336" rx="9" ry="5.5" fill="#F6C9A0" stroke="#2B2340" stroke-width="4"/>` +
+    `<ellipse cx="203" cy="336" rx="9" ry="5.5" fill="#F6C9A0" stroke="${INK}" stroke-width="4"/>` +
+    `<ellipse cx="235" cy="336" rx="9" ry="5.5" fill="#F6C9A0" stroke="${INK}" stroke-width="4"/>` +
     // mushroom spots and flower stems
     dot(360, 352, 4.5, '#fff') +
     dot(380, 346, 5.5, '#fff') +

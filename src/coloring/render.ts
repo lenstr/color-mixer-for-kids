@@ -1,10 +1,10 @@
 // Draws a coloring page as SVG markup: the painting screen, the gallery
 // thumbnails and the PNG export all use the same drawing.
 
+import { INK } from '../palette';
 import type { Picture } from './pictures';
 
 const UNPAINTED = '#FFFDF7';
-const INK = '#2B2340';
 
 let uidSeq = 0;
 

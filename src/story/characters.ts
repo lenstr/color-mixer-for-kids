@@ -2,8 +2,7 @@
 // the villain who steals the colors, and the hedgehog who asks for help.
 
 import { n } from '../coloring/pictures';
-
-const INK = '#2B2340';
+import { INK } from '../palette';
 
 /** Кляксын: an inky blob with angry brows, a toothy grin and drips. */
 export function villainSVG() {

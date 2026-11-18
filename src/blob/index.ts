@@ -5,7 +5,8 @@
 
 import { mixHexes } from '../color';
 import { onFrame } from '../render/ticker';
-import { type BlobFrame, type Mood, EMPTY_COLOR, GROUND, INK, controlRadii } from './shape';
+import { INK } from '../palette';
+import { type BlobFrame, type Mood, EMPTY_COLOR, GROUND, controlRadii } from './shape';
 import { GlBlobView } from './gl-view';
 
 export { EMPTY_COLOR, type Mood };

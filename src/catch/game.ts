@@ -11,6 +11,7 @@
 
 import { type Drops, type Pigment, PIGMENTS, emptyDrops, mixHex, mixHexes, shade } from '../color';
 import { COLOR_BY_ID, type NamedColor } from '../data';
+import { CARD, INK } from '../palette';
 
 // The drops that fall, all of them on every level. A mixed drop pours its
 // whole recipe into the bucket, so purple and white make lilac.
@@ -49,8 +50,6 @@ const WON_PAUSE = 1.6; // seconds between a full bucket and the next color
 const MOUSE_EVERY = 40; // seconds between visits of the mouse with the mop
 
 const MUD_HEX = '#6B4A2B';
-const INK = '#2B2340';
-const CARD = '#FFFDF7';
 const DISPLAY = 'Unbounded, "Arial Black", system-ui, sans-serif';
 /** The drop of jar.ts dropSVG: 30 wide, its round part centered at (0, 7). */
 const DROP_PATH = new Path2D('M0 -22 C7 -11 15 -2 15 7 A15 15 0 0 1 -15 7 C-15 -2 -7 -11 0 -22 Z');

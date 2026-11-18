@@ -1,6 +1,5 @@
 // Geometry shared by the blob's simulation and its WebGL renderer.
 
-export const INK = '#2B2340';
 export const EMPTY_COLOR = '#F4EBDC';
 /** y of the floor the blob sits on, in blob units (viewBox −150 −140 300 250). */
 export const GROUND = 78;
