@@ -75,7 +75,10 @@ export function paintScreen(pic: Picture, story?: PaintStory): Screen {
   const grid = html(`
     <div class="mixer-grid">
       <div class="stage paint-stage">
-        <div class="picture-wrap">${pictureSVG(pic, art.fills, { dotted: true, interactive: true })}</div>
+        <div class="picture-wrap">
+          ${pictureSVG(pic, art.fills, { dotted: true, interactive: true })}
+          <svg class="hints" viewBox="0 0 400 400" aria-hidden="true"></svg>
+        </div>
         <div class="paint-tools">
           <button class="paint-tool" data-act="undo" aria-label="Отменить">${icon.undo}<span>Назад</span></button>
           <button class="paint-tool" data-act="clear" aria-label="Стереть всё">${icon.eraser}<span>Стереть</span></button>
@@ -95,6 +98,7 @@ export function paintScreen(pic: Picture, story?: PaintStory): Screen {
   root.append(grid);
 
   const svg = $<SVGSVGElement>(grid, '.picture-svg');
+  const hintLayer = $<SVGSVGElement>(grid, '.hints');
   const EMPTY = emptyFill(svg);
   const brushBlobEl = $(grid, '.brush-blob');
   const bubble = $(grid, '.bubble');
@@ -127,7 +131,8 @@ export function paintScreen(pic: Picture, story?: PaintStory): Screen {
     onChange: renderBrush,
     onClearHints() {
       myColors.querySelectorAll('.is-hinted').forEach((b) => b.classList.remove('is-hinted'));
-      svg.querySelectorAll('.is-hinted, .is-wanted').forEach((n) => n.classList.remove('is-hinted', 'is-wanted'));
+      svg.querySelectorAll('.is-hinted').forEach((n) => n.classList.remove('is-hinted'));
+      hintLayer.querySelectorAll('.is-wanted').forEach((n) => n.classList.remove('is-wanted'));
     },
     onCtrlZ: undoStroke,
   });
@@ -146,10 +151,6 @@ export function paintScreen(pic: Picture, story?: PaintStory): Screen {
   const perfect = () => isPerfect(pic, art);
 
   // hint dots over everything, at each region's deepest point
-  const hintLayer = document.createElementNS(SVG_NS, 'g');
-  hintLayer.classList.add('hints');
-  hintLayer.setAttribute('pointer-events', 'none');
-  svg.querySelector('.deco')!.after(hintLayer);
   void anchors(pic).then((spots) => {
     for (const r of pic.regions) addHintDot(r, spots[r.id]);
     paintHints();
@@ -339,6 +340,7 @@ export function paintScreen(pic: Picture, story?: PaintStory): Screen {
     say(exact ? 'picture-perfect' : 'picture-done');
     saveBtn.classList.add('is-hinted');
     restartClass(svg, 'is-cheering');
+    restartClass(hintLayer, 'is-cheering');
     if (story) doneTimer = window.setTimeout(() => story.done(root), 2600);
   }
 
