@@ -124,7 +124,8 @@ export type CatchEvent =
   | { type: 'land' }
   | { type: 'hud'; hud: Hud };
 
-/** Where Клякса stands, in canvas CSS pixels. */
+/** Where Клякса stands, in canvas CSS pixels. The game reuses the object
+ * for every frame, so read it during the call only. */
 export interface Player {
   x: number;
   groundY: number;
@@ -153,6 +154,12 @@ interface Float { x: number; y: number; text: string; hex: string; t: number; bi
 
 const rand = (a: number, b: number) => a + Math.random() * (b - a);
 const any = <T>(list: readonly T[]) => list[Math.floor(Math.random() * list.length)];
+/** Keep the items that pass, in place, so a frame copies no arrays. */
+function prune<T>(list: T[], keep: (x: T) => boolean) {
+  let n = 0;
+  for (const x of list) if (keep(x)) list[n++] = x;
+  list.length = n;
+}
 
 export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
   const ctx = canvas.getContext('2d')!;
@@ -404,19 +411,19 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
       const pigment = PIGMENTS.find((p) => d.kind.recipe[p] > 0)!;
       opts.on({ type: 'catch', pigment, combo: d.combo });
     }
-    sinking = sinking.filter((d) => d.y !== Infinity);
+    prune(sinking, (d) => d.y !== Infinity);
     shownFill += (shownN / capacity() - shownFill) * Math.min(1, dt * 12);
     if (tint.t < 1) tint.t = Math.min(1, tint.t + dt / 0.7);
-    ripples.forEach((r) => (r.t += dt));
-    ripples = ripples.filter((r) => r.t < 0.6);
-    swirls.forEach((w) => (w.t += dt));
-    swirls = swirls.filter((w) => w.t < 0.9);
+    for (const r of ripples) r.t += dt;
+    prune(ripples, (r) => r.t < 0.6);
+    for (const w of swirls) w.t += dt;
+    prune(swirls, (w) => w.t < 0.9);
     for (const q of splashes) {
       q.vy += 1400 * dt;
       q.dx += q.vx * dt;
       q.y += q.vy * dt;
     }
-    splashes = splashes.filter((q) => q.vy < 0 || q.y < surface);
+    prune(splashes, (q) => q.vy < 0 || q.y < surface);
     bumpT += dt;
   }
 
@@ -462,9 +469,9 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
         q.t = 99;
       }
     }
-    parts = parts.filter((q) => q.t < 2);
-    floats.forEach((f) => (f.t += dt));
-    floats = floats.filter((f) => f.t < 1.2);
+    prune(parts, (q) => q.t < 2);
+    for (const f of floats) f.t += dt;
+    prune(floats, (f) => f.t < 1.2);
     shakeT = Math.max(0, shakeT - dt);
     if (splats.length > 160) splats.splice(0, splats.length - 160);
 
@@ -493,7 +500,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
         m.x += m.dir * 0.3 * dt; // share of the shelf per second
         const { shelfX0: x0, shelfX1: x1 } = L;
         const mop = (x0 + m.x * (x1 - x0) + m.dir * Math.max(14, PW * 0.035) * 2 - OX) / PW;
-        splats = splats.filter((s) => (m.dir === 1 ? s.x > mop : s.x < mop));
+        prune(splats, (s) => (m.dir === 1 ? s.x > mop : s.x < mop));
         if (m.x < -0.12 || m.x > 1.12) mouse = null;
       }
     }
@@ -542,7 +549,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
         if (d.kind !== 'mud' && fits(d.kind)) combo = 0;
       }
     }
-    drops = drops.filter((d) => d.y !== Infinity);
+    prune(drops, (d) => d.y !== Infinity);
   }
 
   /** Corners of the bucket around its bottom center, for the fall. */
@@ -965,13 +972,16 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     ctx.restore();
   }
 
+  // what the screen gets each frame, reused
+  const look = { x: 0, y: 0 };
+  const player: Player = { x: 0, groundY: 0, width: 0, look: null, shelfRight: 0, hop: 0 };
   function draw() {
     const { cloudY, groundY, bTop } = L;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, W, H);
     if (shakeT) ctx.translate(Math.sin(time * 80) * 6 * (shakeT / 0.3), 0);
 
-    for (const c of clouds) for (const shift of [-1, 0, 1]) drawCloud(c, cloudY, shift);
+    for (const c of clouds) for (let shift = -1; shift <= 1; shift++) drawCloud(c, cloudY, shift);
     for (const d of drops) drawDrop(d);
     drawShelf(groundY);
     drawBucket();
@@ -999,15 +1009,20 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     }
     ctx.globalAlpha = 1;
 
-    const next = drops.filter((d) => d.y < bTop).sort((a, b) => b.y - a.y)[0];
-    opts.frame({
-      x: OX + bx * PW,
-      groundY,
-      width: L.bw,
-      look: next ? { x: OX + next.x * PW, y: next.y } : null,
-      shelfRight: L.shelfX1,
-      hop,
-    });
+    // Клякса watches the lowest drop still above the bucket
+    let next: Drop | null = null;
+    for (const d of drops) if (d.y < bTop && (!next || d.y > next.y)) next = d;
+    if (next) {
+      look.x = OX + next.x * PW;
+      look.y = next.y;
+    }
+    player.x = OX + bx * PW;
+    player.groundY = groundY;
+    player.width = L.bw;
+    player.look = next ? look : null;
+    player.shelfRight = L.shelfX1;
+    player.hop = hop;
+    opts.frame(player);
   }
 
   // ---------- loop ----------
