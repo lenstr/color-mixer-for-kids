@@ -204,6 +204,10 @@ export function catchScreen(): Screen {
         overTimer = window.setTimeout(() => showOver(e.score, record, reached), 1900);
         break;
       }
+      case 'land':
+        blob.wiggle(-4.5);
+        sfx.plop('yellow');
+        break;
       case 'thud':
         sfx.thud();
         blob.react('oops', 1400);
@@ -225,7 +229,7 @@ export function catchScreen(): Screen {
       blobBox.style.width = `${w}px`;
     }
     const u = w / 300;
-    blobBox.style.transform = `translate(${p.x - w / 2}px, ${p.groundY - 218 * u}px)`;
+    blobBox.style.transform = `translate(${p.x - w / 2}px, ${p.groundY - 218 * u + p.hop}px)`;
     // the pour tool stands past the right end of the shelf when there is room
     const room = stage.clientWidth - p.shelfRight - pourBtn.offsetWidth - 16;
     const right = `${room > 0 ? room : 0}px`;

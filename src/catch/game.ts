@@ -93,6 +93,8 @@ export type CatchEvent =
   | { type: 'mouse' }
   /** the bucket hit the shelf after the last life */
   | { type: 'thud' }
+  /** Клякса lands after a joyful hop */
+  | { type: 'land' }
   | { type: 'hud'; hud: Hud };
 
 /** Where Клякса stands, in canvas CSS pixels. */
@@ -105,6 +107,8 @@ export interface Player {
   look: { x: number; y: number } | null;
   /** right end of the shelf */
   shelfRight: number;
+  /** how high Клякса hops right now, in pixels (negative is up) */
+  hop: number;
 }
 
 export interface CatchOptions {
@@ -150,6 +154,8 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
   let mouseT = 0;
   let mouse: { x: number; dir: 1 | -1 } | null = null; // x: share of the shelf
   let slosh = 0; // the paint sways after a catch
+  // a full bucket makes Клякса hop for joy, bucket and all
+  let hop = 0, hopV = 0, hops = 0, hopWait = 0;
   /** The bucket falling off Клякса's head after the last life: its bottom
    * center moves by (dx, dy) and it turns by `rot` around that point. */
   let fall: { dx: number; dy: number; vx: number; vy: number; rot: number; vr: number; dir: 1 | -1; landed: number; spill: string | null } | null = null;
@@ -207,6 +213,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     mouseT = 0;
     mouse = null;
     fall = null;
+    hop = hopV = hops = hopWait = 0;
     bx = 0.5;
     setupLevel();
     phase = 'play';
@@ -298,7 +305,32 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     phase = 'won';
     phaseT = 0;
     drops = [];
+    hops = 2;
+    hopWait = 0.12;
     opts.on({ type: 'win', target, next: targetFor(level + 1) });
+  }
+
+  // ---------- hop for joy ----------
+  const HOP_G = 2600;
+  function updateHop(dt: number) {
+    if (hopWait > 0) {
+      hopWait -= dt;
+      if (hopWait <= 0 && hops > 0) {
+        hops--;
+        hopV = -Math.sqrt(2 * HOP_G * L().bw * (hops ? 0.55 : 0.35)); // the second hop is smaller
+      }
+      return;
+    }
+    if (!hopV && !hop) return;
+    hopV += HOP_G * dt;
+    hop += hopV * dt;
+    if (hop >= 0) {
+      hop = 0;
+      hopV = 0;
+      slosh = 1;
+      opts.on({ type: 'land' });
+      if (hops > 0) hopWait = 0.06;
+    }
   }
 
   // ---------- simulation ----------
@@ -306,6 +338,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     time += dt;
     phaseT += dt;
     slosh = Math.max(0, slosh - dt * 1.5);
+    updateHop(dt);
     const { cloudY, groundY, bw, bTop } = L();
 
     for (const q of parts) {
@@ -661,7 +694,8 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
 
   /** The bucket on Клякса's head, filled with the mix so far. */
   function drawBucket() {
-    const { bw, bh, bTop, bBot } = L();
+    const { bw, bh } = L();
+    const bTop = L().bTop + hop, bBot = L().bBot + hop;
     const x = OX + bx * PW;
     const tw = bw / 2, bwb = bw * 0.39, rr = bw * 0.1;
     const rimH = bw * 0.13;
@@ -800,6 +834,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
       width: L().bw,
       look: next ? { x: OX + next.x * PW, y: next.y } : null,
       shelfRight: shelfEnds()[1],
+      hop,
     });
   }
 
