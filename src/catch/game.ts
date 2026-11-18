@@ -137,8 +137,6 @@ export interface Player {
   width: number;
   /** the drop it watches, if any */
   look: { x: number; y: number } | null;
-  /** right end of the shelf */
-  shelfRight: number;
   /** how high Клякса hops right now, in pixels (negative is up) */
   hop: number;
 }
@@ -985,7 +983,7 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
 
   // what the screen gets each frame, reused
   const look = { x: 0, y: 0 };
-  const player: Player = { x: 0, groundY: 0, width: 0, look: null, shelfRight: 0, hop: 0 };
+  const player: Player = { x: 0, groundY: 0, width: 0, look: null, hop: 0 };
   function draw() {
     const { cloudY, groundY, bTop } = L;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -1033,7 +1031,6 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     player.groundY = groundY;
     player.width = L.bw;
     player.look = next ? look : null;
-    player.shelfRight = L.shelfX1;
     player.hop = hop;
     opts.frame(player);
   }
@@ -1058,6 +1055,10 @@ export function catchGame(canvas: HTMLCanvasElement, opts: CatchOptions) {
     pour,
     get phase() {
       return phase;
+    },
+    /** right end of the shelf, in canvas CSS pixels */
+    get shelfRight() {
+      return L.shelfX1;
     },
     get paused() {
       return paused;

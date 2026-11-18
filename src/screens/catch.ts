@@ -222,7 +222,9 @@ export function catchScreen(): Screen {
 
   // Клякса stands under the bucket: its body, 2 × BODY_R blob units, is
   // `width` wide, and the floor lies GROUND − BOX.y units below its box's top
+  // Nothing here reads the layout, so a frame costs no forced reflow.
   let boxW = 0;
+  const box = { left: 0, top: 0, width: 0, height: 0 }; // the blob's, in the stage
   function frame(p: Player) {
     const w = (p.width * BOX.w) / (2 * BODY_R);
     if (Math.abs(w - boxW) > 0.5) {
@@ -230,21 +232,29 @@ export function catchScreen(): Screen {
       blobBox.style.width = `${w}px`;
     }
     const u = w / BOX.w;
-    blobBox.style.transform = `translate(${p.x - w / 2}px, ${p.groundY - (GROUND - BOX.y) * u + p.hop}px)`;
-    // the pour tool stands past the right end of the shelf when there is room
-    const room = stage.clientWidth - p.shelfRight - pourBtn.offsetWidth - 16;
-    const right = `${room > 0 ? room : 0}px`;
-    if (pourBtn.style.right !== right) pourBtn.style.right = right;
+    box.left = p.x - w / 2;
+    box.top = p.groundY - (GROUND - BOX.y) * u + p.hop;
+    blobBox.style.transform = `translate(${box.left}px, ${box.top}px)`;
     if (p.look) {
-      const r = stage.getBoundingClientRect();
-      blob.lookAt(r.left + p.look.x, r.top + p.look.y);
+      box.width = boxW;
+      box.height = (boxW * BOX.h) / BOX.w;
+      blob.lookAt(p.look.x, p.look.y, box);
     }
   }
 
   const game = catchGame(canvas, { on, frame, calm: reduced() });
 
-  const ro = new ResizeObserver(([entry]) => game.resize(entry.contentRect.width, entry.contentRect.height));
+  // the pour tool stands past the right end of the shelf when there is room
+  function placePour() {
+    const room = stage.clientWidth - game.shelfRight - pourBtn.offsetWidth - 16;
+    pourBtn.style.right = `${room > 0 ? room : 0}px`;
+  }
+  const ro = new ResizeObserver((entries) => {
+    for (const e of entries) if (e.target === stage) game.resize(e.contentRect.width, e.contentRect.height);
+    placePour();
+  });
   ro.observe(stage);
+  ro.observe(pourBtn); // its label's font may load later
 
   // ---------- input ----------
   canvas.addEventListener('pointerdown', (e) => {

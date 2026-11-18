@@ -21,6 +21,8 @@ export interface BlobOptions {
 
 const SWIRL_MS = 1100;
 
+type Box = Pick<DOMRectReadOnly, 'left' | 'top' | 'width' | 'height'>;
+
 export class PaintBlob {
   /** The element to put on the page; sized like a 300×250 box. */
   readonly el: HTMLElement;
@@ -137,8 +139,9 @@ export class PaintBlob {
     return { x: r.left + r.width / 2, y: r.top + (158 / 250) * r.height };
   }
 
-  lookAt(px: number, py: number) {
-    const r = this.el.getBoundingClientRect();
+  /** Turn the eyes toward (px, py). `r` is where the blob's box is in the
+   * same coordinates: by default its page rect, which costs a layout read. */
+  lookAt(px: number, py: number, r: Box = this.el.getBoundingClientRect()) {
     const dx = px - (r.left + r.width / 2);
     const dy = py - (r.top + r.height * 0.45);
     const d = Math.hypot(dx, dy) || 1;
