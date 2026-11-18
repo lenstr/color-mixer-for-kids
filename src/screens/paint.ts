@@ -421,6 +421,7 @@ export function paintScreen(pic: Picture): Screen {
     renderBrush();
     flyDrop(jarMouth(jar), blob.mouthPoint(), paint.hex, () => {
       inFlight--;
+      paintTools();
       sfx.plop(p);
       blob.eat(paint.hex, mixHex(snapshot));
       splash(blob.mouthPoint(), paint.hex);
@@ -495,6 +496,12 @@ export function paintScreen(pic: Picture): Screen {
     });
   }
 
+  /** Undo and pour wait for drops in flight, as in the mixer, and say so by graying out. */
+  function paintTools() {
+    dropUndoBtn.disabled = !history.length || inFlight > 0;
+    pourBtn.disabled = !totalDrops(drops) || inFlight > 0;
+  }
+
   function renderBrush() {
     const total = totalDrops(drops);
     const hex = mixHex(drops);
@@ -506,8 +513,7 @@ export function paintScreen(pic: Picture): Screen {
       nameEl.style.setProperty('--c', hex);
     }
     restartClass(nameEl, 'pop');
-    dropUndoBtn.disabled = !history.length;
-    pourBtn.disabled = !total;
+    paintTools();
     blob.setBaseMood(total ? 'smile' : 'hungry');
     markPicked();
   }
