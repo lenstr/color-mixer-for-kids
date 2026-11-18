@@ -2,6 +2,29 @@
 
 import type { PaintInfo } from './data';
 import { shade } from './color';
+import { icon } from './icons';
+import { html } from './ui';
+
+/** A paint jar button; `onSqueeze` runs on press (not release) so fast taps feel instant. */
+export function jarButton(p: PaintInfo, i: number, onSqueeze: () => void) {
+  const b = html<HTMLButtonElement>(`
+    <button class="jar" style="--paint:${p.hex}; --i:${i}" aria-label="${p.name} краска">
+      ${jarSVG(p)}
+      <span class="jar-label">${p.name}</span>
+      <span class="jar-hint">${icon.sparkle}</span>
+    </button>`);
+  b.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    onSqueeze();
+  });
+  b.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onSqueeze();
+    }
+  });
+  return b;
+}
 
 /**
  * Paint jar in three layers so the sloshing paint costs nothing to animate:

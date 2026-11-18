@@ -1,31 +1,15 @@
 import { type Drops, type Pigment, PIGMENTS, distance, emptyDrops, mixHex, totalDrops } from '../color';
-import { ALL_COLORS, MAX_DROPS, MIX_COLORS, PAINTS, PAINT_BY_ID, type NamedColor } from '../data';
+import { MATCH, MAX_DROPS, MIX_COLORS, NEAR, PAINTS, PAINT_BY_ID, nearest } from '../data';
 import { PaintBlob } from '../blob';
 import { swatchSVG } from '../blob';
-import { dropSVG, jarSVG } from '../jar';
+import { dropSVG, jarButton } from '../jar';
+import { clearEffects, flyDrop, jarMouth, splash } from '../effects';
 import { icon, starSVG } from '../icons';
 import { sfx } from '../audio';
 import { say, preload } from '../speech';
 import { store } from '../storage';
 import { burst, warmup } from '../confetti';
 import { $, type Screen, go, html, plural, toast, topBar } from '../ui';
-
-const MATCH = 2.5; // ΔE below which the mix counts as "the same color"
-const NEAR = 9;
-
-function nearest(d: Drops): { color: NamedColor; dist: number } | null {
-  if (!totalDrops(d)) return null;
-  let best: NamedColor = ALL_COLORS[0];
-  let bestD = Infinity;
-  for (const c of ALL_COLORS) {
-    const dd = distance(d, c.recipe);
-    if (dd < bestD) {
-      bestD = dd;
-      best = c;
-    }
-  }
-  return { color: best, dist: bestD };
-}
 
 type Suggestion = { kind: 'add'; pigment: Pigment } | { kind: 'undo' } | { kind: 'pour' } | { kind: 'done' };
 
@@ -134,22 +118,7 @@ export function mixerScreen(levelIndex: number | null): Screen {
   // ---------- jars ----------
   const jarBtns = new Map<Pigment, HTMLButtonElement>();
   PAINTS.forEach((p, i) => {
-    const b = html<HTMLButtonElement>(`
-      <button class="jar" style="--paint:${p.hex}; --i:${i}" aria-label="${p.name} краска">
-        ${jarSVG(p)}
-        <span class="jar-label">${p.name}</span>
-        <span class="jar-hint">${icon.sparkle}</span>
-      </button>`);
-    b.addEventListener('pointerdown', (e) => {
-      e.preventDefault();
-      addDrop(p.id, b);
-    });
-    b.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        addDrop(p.id, b);
-      }
-    });
+    const b = jarButton(p, i, () => addDrop(p.id, b));
     jarBtns.set(p.id, b);
     jarsEl.append(b);
   });
@@ -283,11 +252,11 @@ export function mixerScreen(levelIndex: number | null): Screen {
     inFlight++;
     undoBtn.disabled = pourBtn.disabled = true;
 
-    flyDrop(jar, paint.hex, () => {
+    flyDrop(jarMouth(jar), blob.mouthPoint(), paint.hex, () => {
       inFlight--;
       sfx.plop(p);
       blob.eat(paint.hex, mixHex(snapshot));
-      splash(paint.hex);
+      splash(blob.mouthPoint(), paint.hex);
       renderReadout(snapshot);
       if (inFlight > 0) undoBtn.disabled = pourBtn.disabled = true;
       afterMix(snapshot);
@@ -460,57 +429,6 @@ export function mixerScreen(levelIndex: number | null): Screen {
     );
   }
 
-  // ---------- effects ----------
-  function flyDrop(jar: HTMLElement, hex: string, done: () => void) {
-    const jr = jar.querySelector('.jar-art')!.getBoundingClientRect();
-    const start = { x: jr.left + jr.width / 2, y: jr.top + jr.height * 0.12 };
-    const end = blob.mouthPoint();
-    const d = html(`<div class="flying-drop">${dropSVG(hex)}</div>`);
-    document.body.append(d);
-    const apex = Math.min(start.y, end.y) - Math.max(90, Math.abs(start.x - end.x) * 0.25);
-    const ctrl = { x: (start.x + end.x) / 2, y: apex };
-    const frames: Keyframe[] = [];
-    const N = 16;
-    for (let i = 0; i <= N; i++) {
-      const t = i / N;
-      const x = (1 - t) ** 2 * start.x + 2 * (1 - t) * t * ctrl.x + t * t * end.x;
-      const y = (1 - t) ** 2 * start.y + 2 * (1 - t) * t * ctrl.y + t * t * end.y;
-      const vx = 2 * (1 - t) * (ctrl.x - start.x) + 2 * t * (end.x - ctrl.x);
-      const vy = 2 * (1 - t) * (ctrl.y - start.y) + 2 * t * (end.y - ctrl.y);
-      const rot = (Math.atan2(-vx, vy) * 180) / Math.PI + 180;
-      const sc = 0.6 + Math.sin(t * Math.PI) * 0.5;
-      frames.push({ transform: `translate(${x}px, ${y}px) translate(-50%, -50%) rotate(${rot}deg) scale(${sc})` });
-    }
-    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const anim = d.animate(frames, { duration: reduced ? 200 : 560, easing: 'cubic-bezier(.3,.1,.6,1)' });
-    anim.onfinish = () => {
-      d.remove();
-      done();
-    };
-  }
-
-  function splash(hex: string) {
-    const m = blob.mouthPoint();
-    for (let i = 0; i < 9; i++) {
-      const s = html(`<i class="splash-dot" style="--c:${hex}"></i>`);
-      document.body.append(s);
-      const a = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 1.3;
-      const v = 50 + Math.random() * 70;
-      const size = 8 + Math.random() * 10;
-      s.style.width = s.style.height = `${size}px`;
-      s.animate(
-        [
-          { transform: `translate(${m.x}px, ${m.y}px) translate(-50%,-50%) scale(1)`, opacity: 1 },
-          {
-            transform: `translate(${m.x + Math.cos(a) * v}px, ${m.y + Math.sin(a) * v + 30}px) translate(-50%,-50%) scale(.2)`,
-            opacity: 0,
-          },
-        ],
-        { duration: 520, easing: 'cubic-bezier(.2,.7,.4,1)' },
-      ).onfinish = () => s.remove();
-    }
-  }
-
   // ---------- keyboard ----------
   const onKey = (e: KeyboardEvent) => {
     if (e.target instanceof HTMLButtonElement && (e.key === 'Enter' || e.key === ' ')) return;
@@ -544,7 +462,7 @@ export function mixerScreen(levelIndex: number | null): Screen {
       clearTimeout(speakTimer);
       clearTimeout(bubbleTimer);
       window.removeEventListener('keydown', onKey);
-      document.querySelectorAll('.flying-drop, .splash-dot').forEach((n) => n.remove());
+      clearEffects();
     },
   };
 }

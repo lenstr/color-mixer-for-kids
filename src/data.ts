@@ -1,4 +1,4 @@
-import { type Drops, type Pigment, emptyDrops, mixHex } from './color';
+import { type Drops, type Pigment, distance, emptyDrops, mixHex, totalDrops } from './color';
 
 export interface PaintInfo {
   id: Pigment;
@@ -65,4 +65,26 @@ export const MIX_COLORS: NamedColor[] = [
 
 export const ALL_COLORS = [...BASIC_COLORS, ...MIX_COLORS];
 
+export const COLOR_BY_ID = Object.fromEntries(ALL_COLORS.map((c) => [c.id, c])) as Record<string, NamedColor>;
+
 export const MAX_DROPS = 24;
+
+/** ΔE below which a mix counts as "the same color". */
+export const MATCH = 2.5;
+/** ΔE below which a mix is "almost" a named color. */
+export const NEAR = 9;
+
+/** The named color closest to a mix, or null for an empty mix. */
+export function nearest(d: Drops): { color: NamedColor; dist: number } | null {
+  if (!totalDrops(d)) return null;
+  let best = ALL_COLORS[0];
+  let bestD = Infinity;
+  for (const c of ALL_COLORS) {
+    const dd = distance(d, c.recipe);
+    if (dd < bestD) {
+      bestD = dd;
+      best = c;
+    }
+  }
+  return { color: best, dist: bestD };
+}
