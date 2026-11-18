@@ -86,6 +86,41 @@ export function toast(title: string, subtitle: string, hex: string) {
   }, 2800);
 }
 
+export interface DialogOptions {
+  label: string;
+  /** markup above the buttons */
+  body: string;
+  /** button class, button markup, what a tap does */
+  actions: [cls: string, inner: string, run: () => void][];
+  /** extra classes of the card */
+  card?: string;
+}
+
+/**
+ * A dialog card over the screen that holds `host`, so it goes away with that
+ * screen. Each button taps and runs its action; the primary one takes focus.
+ */
+export function dialog(host: Element, o: DialogOptions) {
+  const el = html(`
+    <div class="modal-backdrop">
+      <div class="modal dialog-card ${o.card ?? ''}" role="dialog" aria-label="${o.label}">
+        ${o.body}
+        <div class="win-actions">
+          ${o.actions.map(([cls, inner], i) => `<button class="btn ${cls}" data-act="${i}">${inner}</button>`).join('')}
+        </div>
+      </div>
+    </div>`);
+  o.actions.forEach(([, , run], i) =>
+    $(el, `[data-act="${i}"]`).addEventListener('click', () => {
+      sfx.tap();
+      run();
+    }),
+  );
+  host.append(el);
+  el.querySelector<HTMLButtonElement>('.btn-primary')?.focus();
+  return { el, close: () => el.remove() };
+}
+
 /** Replays a CSS animation bound to `cls`. */
 export function restartClass(el: Element, cls: string) {
   el.classList.remove(cls);

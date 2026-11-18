@@ -11,7 +11,7 @@ import { icon } from '../icons';
 import { sfx } from '../audio';
 import { say, speaking } from '../speech';
 import { store } from '../storage';
-import { $, type Screen, go, html, topBar } from '../ui';
+import { $, type DialogOptions, type Screen, dialog, go, html, topBar } from '../ui';
 
 const KEYS: Record<string, 'left' | 'right'> = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right' };
 
@@ -93,30 +93,14 @@ export function catchScreen(): Screen {
   }
 
   // ---------- dialogs ----------
-  let dialog: HTMLElement | null = null;
-  function openDialog(label: string, body: string, actions: [string, string, () => void][]) {
+  let modal: ReturnType<typeof dialog> | null = null;
+  function openDialog(label: string, body: string, actions: DialogOptions['actions']) {
     closeDialog();
-    dialog = html(`
-      <div class="modal-backdrop">
-        <div class="modal catch-modal" role="dialog" aria-label="${label}">
-          ${body}
-          <div class="win-actions">
-            ${actions.map(([cls, inner], i) => `<button class="btn ${cls}" data-act="${i}">${inner}</button>`).join('')}
-          </div>
-        </div>
-      </div>`);
-    actions.forEach(([, , run], i) =>
-      $(dialog!, `[data-act="${i}"]`).addEventListener('click', () => {
-        sfx.tap();
-        run();
-      }),
-    );
-    root.append(dialog);
-    dialog.querySelector<HTMLButtonElement>('.btn-primary')?.focus();
+    modal = dialog(root, { label, body, actions });
   }
   function closeDialog() {
-    dialog?.remove();
-    dialog = null;
+    modal?.close();
+    modal = null;
   }
 
   const play = () => {
@@ -136,22 +120,22 @@ export function catchScreen(): Screen {
     const best = store.catchBest;
     openDialog(
       'Поймай цвет',
-      `<h2 class="win-title catch-title">Поймай цвет</h2>
+      `<h2 class="win-title dialog-title">Поймай цвет</h2>
        <ul class="catch-rules">
          <li>${dropSVG('#FF8A1C')}<span>Лови капли, из которых<br>смешается нужный цвет</span></li>
          <li>${mudSVG}<span>Лишняя капля и грязь<br>портят ведро</span></li>
          <li>${icon.pour}<span>Ведро можно вылить</span></li>
        </ul>
-       ${best ? `<p class="catch-best">Рекорд: <b>${best}</b></p>` : ''}`,
+       ${best ? `<p class="dialog-note">Рекорд: <b>${best}</b></p>` : ''}`,
       [['btn-primary', `${icon.play}<span>Играть</span>`, play]],
     );
   }
 
   function showPause() {
-    if (dialog || (game.phase !== 'play' && game.phase !== 'won')) return;
+    if (modal || (game.phase !== 'play' && game.phase !== 'won')) return;
     game.paused = true;
     blob.pause();
-    openDialog('Пауза', `<h2 class="win-title catch-title">Пауза</h2>`, [
+    openDialog('Пауза', `<h2 class="win-title dialog-title">Пауза</h2>`, [
       ['btn-ghost', `${icon.replay}<span>Заново</span>`, play],
       ['btn-primary', `${icon.play}<span>Играть</span>`, resume],
     ]);
@@ -160,10 +144,10 @@ export function catchScreen(): Screen {
   function showOver(score: number, record: boolean, reached: Hud['target']) {
     openDialog(
       'Игра окончена',
-      `<h2 class="win-title catch-title">Ведро упало!</h2>
+      `<h2 class="win-title dialog-title">Ведро упало!</h2>
        <p class="win-sub">Очки: <b style="--c:#FFD21F">${score}</b></p>
-       ${record ? `<div class="win-new">${icon.sparkle} Новый рекорд!</div>` : `<p class="catch-best">Рекорд: <b>${store.catchBest}</b></p>`}
-       <p class="catch-best">Дошли до цвета <b style="--c:${reached.hex}">${reached.name.toLowerCase()}</b></p>`,
+       ${record ? `<div class="win-new">${icon.sparkle} Новый рекорд!</div>` : `<p class="dialog-note">Рекорд: <b>${store.catchBest}</b></p>`}
+       <p class="dialog-note">Дошли до цвета <b style="--c:${reached.hex}">${reached.name.toLowerCase()}</b></p>`,
       [
         ['btn-ghost', `${icon.home}<span>Домой</span>`, goHome],
         ['btn-primary', `${icon.replay}<span>Ещё раз</span>`, play],
@@ -275,7 +259,7 @@ export function catchScreen(): Screen {
   pourBtn.addEventListener('click', () => game.pour());
   $(root, '[data-pause]').addEventListener('click', () => {
     sfx.tap();
-    if (dialog && game.paused) resume();
+    if (modal && game.paused) resume();
     else showPause();
   });
 
@@ -288,9 +272,9 @@ export function catchScreen(): Screen {
     }
     if (e.type !== 'keydown' || e.repeat) return;
     if (e.code === 'Escape' || e.code === 'KeyP') {
-      if (dialog && game.paused) resume();
+      if (modal && game.paused) resume();
       else showPause();
-    } else if (dialog) return;
+    } else if (modal) return;
     else if (e.code === 'ArrowDown' || e.code === 'KeyS') game.pour();
     else if (e.code === 'Space' && !(e.target as HTMLElement).closest('button')) {
       e.preventDefault();

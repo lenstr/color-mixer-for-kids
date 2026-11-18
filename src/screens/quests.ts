@@ -9,7 +9,7 @@ import { sfx } from '../audio';
 import { say } from '../speech';
 import { store } from '../storage';
 import { burst } from '../confetti';
-import { $, type Screen, go, html, topBar } from '../ui';
+import { $, type Screen, dialog, go, html, topBar } from '../ui';
 import { hedgehogSVG } from '../story/characters';
 import { GLADE } from '../story/glade';
 import { gladeSaved } from '../story';
@@ -55,37 +55,33 @@ export function gladeScreen(): Screen {
     mode: 'task',
     back: { name: 'quests' },
     intro: 'glade-intro',
-    done() {
+    done(screen) {
       if (store.story === 'saved') return;
-      void gladeSaved().then(showGift);
+      void gladeSaved().then(() => showGift(screen));
     },
   });
 }
 
-function showGift() {
-  const modal = html(`
-    <div class="modal-backdrop">
-      <div class="modal catch-modal gift-card" role="dialog" aria-label="Награда">
-        <div class="gift-jar">${jarSVG(GOLD_PAINT)}</div>
-        <h2 class="win-title catch-title">Золотая краска!</h2>
-        <p class="catch-best">Теперь она в мастерской и в раскраске</p>
-        <div class="win-actions">
-          <button class="btn btn-ghost" data-quests><span>Задания</span></button>
-          <button class="btn btn-primary" data-studio>${icon.palette}<span>В мастерскую</span></button>
-        </div>
-      </div>
-    </div>`);
-  document.body.append(modal);
-  sfx.discover();
-  say('gold-gift');
-  const box = $(modal, '.gift-jar').getBoundingClientRect();
-  burst([GOLD_PAINT.hex, '#FFD21F', '#FFFDF7'], { x: box.left + box.width / 2, y: box.top + box.height / 2, count: 90 });
-  const close = (to: 'quests' | 'studio') => {
-    sfx.tap();
-    modal.remove();
+function showGift(screen: HTMLElement) {
+  if (!screen.isConnected) return;
+  const gift = dialog(screen, {
+    label: 'Награда',
+    card: 'gift-card',
+    body: `
+      <div class="gift-jar">${jarSVG(GOLD_PAINT)}</div>
+      <h2 class="win-title dialog-title">Золотая краска!</h2>
+      <p class="dialog-note">Теперь она в мастерской и в раскраске</p>`,
+    actions: [
+      ['btn-ghost', '<span>Задания</span>', () => leave('quests')],
+      ['btn-primary', `${icon.palette}<span>В мастерскую</span>`, () => leave('studio')],
+    ],
+  });
+  const leave = (to: 'quests' | 'studio') => {
+    gift.close();
     go({ name: to });
   };
-  $(modal, '[data-quests]').addEventListener('click', () => close('quests'));
-  $(modal, '[data-studio]').addEventListener('click', () => close('studio'));
-  $<HTMLButtonElement>(modal, '[data-studio]').focus();
+  sfx.discover();
+  say('gold-gift');
+  const box = $(gift.el, '.gift-jar').getBoundingClientRect();
+  burst([GOLD_PAINT.hex, '#FFD21F', '#FFFDF7'], { x: box.left + box.width / 2, y: box.top + box.height / 2, count: 90 });
 }

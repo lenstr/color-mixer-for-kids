@@ -1928,6 +1928,20 @@ label.parent-row { cursor: pointer; }
 }
 
 /* ==========================================================================
+   DIALOGS (ui.ts dialog): after the responsive rules, so the title keeps its size
+   ========================================================================== */
+
+.dialog-card { align-items: center; gap: 4px; padding: 30px 28px 26px; text-align: center; }
+.dialog-title { font-size: clamp(34px, 8vw, 46px); }
+.dialog-note { margin: 2px 0; font-size: 17px; color: var(--ink-2); }
+.dialog-note b, .dialog-card .win-sub b {
+  font-family: var(--display);
+  color: var(--ink);
+  background: linear-gradient(var(--c, var(--yellow)), var(--c, var(--yellow))) 0 90% / 100% 0.4em no-repeat;
+  padding: 0 3px;
+}
+
+/* ==========================================================================
    CATCH THE COLOR
    ========================================================================== */
 
@@ -2044,8 +2058,6 @@ label.parent-row { cursor: pointer; }
 }
 .catch-pour { position: absolute; right: 0; bottom: 54px; }
 
-.catch-modal { align-items: center; gap: 4px; padding: 30px 28px 26px; text-align: center; }
-.catch-title { font-size: clamp(34px, 8vw, 46px); }
 .catch-rules {
   display: flex;
   flex-direction: column;
@@ -2061,13 +2073,6 @@ label.parent-row { cursor: pointer; }
 .catch-rules li { display: flex; align-items: center; gap: 14px; }
 .catch-rules svg { flex: none; width: 36px; height: 40px; }
 .catch-rules li:last-child svg { padding: 3px; stroke-width: 2.6; }
-.catch-best { margin: 2px 0; font-size: 17px; color: var(--ink-2); }
-.catch-best b, .catch-modal .win-sub b {
-  font-family: var(--display);
-  color: var(--ink);
-  background: linear-gradient(var(--c, var(--yellow)), var(--c, var(--yellow))) 0 90% / 100% 0.4em no-repeat;
-  padding: 0 3px;
-}
 
 @media (max-width: 560px) {
   .catch-card { gap: 10px; padding: 10px 14px 10px 10px; margin-top: 4px; box-shadow: 5px 6px 0 var(--ink); }

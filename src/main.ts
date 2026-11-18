@@ -73,7 +73,7 @@ function fromHash(): Route {
 
 function show(r: Route) {
   hush();
-  document.querySelectorAll('.toast, body > .modal-backdrop').forEach((t) => t.remove());
+  document.querySelectorAll('.toast').forEach((t) => t.remove());
   const prev = current;
   const next = build(r);
   current = next;

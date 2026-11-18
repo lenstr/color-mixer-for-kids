@@ -37,8 +37,12 @@ export interface PaintStory {
   back: Route;
   /** phrase id said when the screen opens */
   intro: string;
-  /** runs once the picture is complete */
-  done(): void;
+  /**
+   * runs once the picture is complete, and on opening a complete one, since
+   * leaving the screen right after the last stroke cancels the call;
+   * `screen` holds whatever it shows next
+   */
+  done(screen: HTMLElement): void;
 }
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -73,6 +77,7 @@ export function paintScreen(pic: Picture, story?: PaintStory): Screen {
   let inFlight = 0;
   let lastWrong: Region | null = null;
   let clearTimer = 0;
+  let doneTimer = 0;
 
   const root = html(`<section class="screen paint is-${mode}"></section>`);
   root.append(
@@ -337,7 +342,7 @@ export function paintScreen(pic: Picture, story?: PaintStory): Screen {
     say(exact ? 'picture-perfect' : 'picture-done');
     saveBtn.classList.add('is-hinted');
     restartClass(svg, 'is-cheering');
-    if (story) setTimeout(story.done, 2600);
+    if (story) doneTimer = window.setTimeout(() => story.done(root), 2600);
   }
 
   const dominant = (d: Drops) => PIGMENTS.reduce((a, b) => (d[b] > d[a] ? b : a));
@@ -596,12 +601,14 @@ export function paintScreen(pic: Picture, story?: PaintStory): Screen {
         showBubble(`Раскрась ${pic.acc}!`);
         say(intro);
       }, 400);
+      if (story && complete()) doneTimer = window.setTimeout(() => story.done(root), 400);
     },
     destroy() {
       blob.destroy();
       clearEffects();
       speech.dispose();
       clearTimeout(clearTimer);
+      clearTimeout(doneTimer);
       window.removeEventListener('keydown', onKey);
     },
   };
