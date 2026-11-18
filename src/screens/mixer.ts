@@ -1,15 +1,16 @@
-import { type Drops, type Pigment, PIGMENTS, distance, emptyDrops, mixHex, totalDrops } from '../color';
-import { MATCH, MAX_DROPS, MIX_COLORS, NEAR, PAINTS, PAINT_BY_ID, colorLabel, nearest, shelfPaints, suggest } from '../data';
+import { type Drops, PIGMENTS, distance, mixHex, totalDrops } from '../color';
+import { MATCH, MIX_COLORS, NEAR, PAINTS, PAINT_BY_ID, colorLabel, nearest, shelfPaints, suggest } from '../data';
 import { PaintBlob } from '../blob';
 import { swatchSVG } from '../blob';
-import { dropSVG, jarShelf } from '../jar';
-import { clearEffects, flyDrop, jarMouth, splash } from '../effects';
+import { paintBrush } from '../brush';
+import { dropSVG } from '../jar';
+import { clearEffects } from '../effects';
 import { icon, starSVG } from '../icons';
 import { sfx } from '../audio';
 import { say, preload } from '../speech';
 import { store } from '../storage';
 import { burst, warmup } from '../confetti';
-import { $, type Screen, go, html, plural, restartClass, speechBubble, toast, topBar } from '../ui';
+import { $, type Screen, go, html, plural, restartClass, speechBubble, topBar } from '../ui';
 
 
 /** Sunburst behind the win blob, as a ready-made image the GPU just spins. */
@@ -35,12 +36,9 @@ export function mixerScreen(levelIndex: number | null): Screen {
   const level = levelIndex === null ? null : MIX_COLORS[levelIndex];
   const isLevel = !!level;
 
-  let drops = emptyDrops();
-  let history: Pigment[] = [];
   let actions = 0;
   let hinted = false;
   let won = false;
-  let inFlight = 0;
   let lastSpoken = '';
   let speakTimer = 0;
 
@@ -64,11 +62,6 @@ export function mixerScreen(levelIndex: number | null): Screen {
         </div>
       </div>
       <aside class="side"></aside>
-      <div class="shelf">
-        <button class="tool" data-tool="undo" aria-label="Убрать каплю">${icon.undo}<span>Убрать</span></button>
-        <div class="jars"></div>
-        <button class="tool" data-tool="pour" aria-label="Вылить краску">${icon.pour}<span>Вылить</span></button>
-      </div>
     </div>`);
   root.append(grid);
 
@@ -77,18 +70,32 @@ export function mixerScreen(levelIndex: number | null): Screen {
   const nameEl = $(grid, '.readout-name');
   const eqEl = $(grid, '.equation');
   const side = $(grid, '.side');
-  const jarsEl = $(grid, '.jars');
-  const undoBtn = $<HTMLButtonElement>(grid, '[data-tool="undo"]');
-  const pourBtn = $<HTMLButtonElement>(grid, '[data-tool="pour"]');
 
   const blob = new PaintBlob({ face: true, color: null, seed: 3 });
   stageBlob.prepend(blob.el);
   blob.setBaseMood('hungry');
 
+  const speech = speechBubble(bubble);
+  const showBubble = speech.show;
+
   // ---------- jars ----------
-  // tasks never need gold, so it stays in the studio
-  const shelf = isLevel ? PAINTS : shelfPaints(store.gold);
-  const jarBtns = jarShelf(jarsEl, shelf, (p) => addDrop(p, jarBtns.get(p)!));
+  const brush = paintBrush({
+    // tasks never need gold, so it stays in the studio
+    paints: isLevel ? PAINTS : shelfPaints(store.gold),
+    blob,
+    bubble: showBubble,
+    enabled: () => !won,
+    onAdd: () => actions++,
+    onLanded(mix) {
+      renderReadout(mix);
+      afterMix(mix);
+    },
+    onChange() {
+      lastSpoken = '';
+      renderReadout(brush.drops);
+    },
+  });
+  grid.append(brush.el);
 
   // ---------- side panel ----------
   let meterFill: HTMLElement | null = null;
@@ -167,82 +174,31 @@ export function mixerScreen(levelIndex: number | null): Screen {
       meterFill.closest('.meter')!.classList.toggle('is-close', pct >= 75);
     }
 
-    undoBtn.disabled = history.length === 0;
-    pourBtn.disabled = total === 0;
     blob.setBaseMood(total ? 'smile' : 'hungry');
   }
 
-  const speech = speechBubble(bubble);
-  const showBubble = speech.show;
-
-  function clearHints() {
-    jarBtns.forEach((b) => b.classList.remove('is-hinted'));
-    undoBtn.classList.remove('is-hinted');
-    pourBtn.classList.remove('is-hinted');
-  }
-
   // ---------- actions ----------
-  function addDrop(p: Pigment, jar: HTMLElement) {
-    if (won) return;
-    if (totalDrops(drops) >= MAX_DROPS) {
-      sfx.full();
-      blob.shake();
-      showBubble('Я уже полная! Вылей краску');
-      pourBtn.classList.add('is-hinted');
-      say('full');
-      return;
-    }
-    clearHints();
-    drops = { ...drops, [p]: drops[p] + 1 };
-    history.push(p);
-    actions++;
-    const snapshot = { ...drops };
-    const paint = PAINT_BY_ID[p];
-
-    sfx.squeeze(p);
-    restartClass(jar, 'is-squeezed');
-    blob.expect();
-    inFlight++;
-    undoBtn.disabled = pourBtn.disabled = true;
-
-    flyDrop(jarMouth(jar), blob.mouthPoint(), paint.hex, () => {
-      inFlight--;
-      sfx.plop(p);
-      blob.eat(paint.hex, mixHex(snapshot));
-      splash(blob.mouthPoint(), paint.hex);
-      renderReadout(snapshot);
-      if (inFlight > 0) undoBtn.disabled = pourBtn.disabled = true;
-      afterMix(snapshot);
-    });
-  }
-
   function afterMix(d: Drops) {
     if (won) return;
-    const n = nearest(d);
-    const isNew = n && n.dist < MATCH && !n.color.basic && store.discover(n.color.id);
+    const found = brush.discover(d);
 
-    if (level && distance(d, level.recipe) < MATCH && inFlight === 0) {
-      win(!!isNew);
+    if (level && distance(d, level.recipe) < MATCH && brush.inFlight === 0) {
+      win(!!found);
       return;
     }
-    if (isNew && n) {
-      sfx.discover();
-      blob.jump();
+    if (found) {
+      brush.cheer(found);
       const r = blob.el.getBoundingClientRect();
-      burst([n.color.hex, '#FFD21F', '#FFFDF7'], { x: r.left + r.width / 2, y: r.top + r.height * 0.4, count: 40 });
-      toast('Новый цвет!', n.color.name, n.color.hex);
-      say(`found-${n.color.id}`);
+      burst([found.hex, '#FFD21F', '#FFFDF7'], { x: r.left + r.width / 2, y: r.top + r.height * 0.4, count: 40 });
       paintCollection();
-      lastSpoken = n.color.id;
-      if (!isLevel && store.discoveredCount() === MIX_COLORS.length) {
-        setTimeout(() => say('all-found'), 2200);
-      }
+      lastSpoken = found.id;
       return;
     }
     // Name the color out loud once the kid pauses.
     clearTimeout(speakTimer);
     speakTimer = window.setTimeout(() => {
-      if (inFlight || won) return;
+      if (brush.inFlight || won) return;
+      const drops = brush.drops;
       const m = nearest(drops);
       if (!m) return;
       if (m.dist < MATCH && m.color.id !== lastSpoken) {
@@ -255,53 +211,19 @@ export function mixerScreen(levelIndex: number | null): Screen {
     }, 750);
   }
 
-  function undo() {
-    if (!history.length || inFlight || won) return;
-    clearHints();
-    const p = history.pop()!;
-    drops = { ...drops, [p]: drops[p] - 1 };
-    sfx.undo();
-    blob.wiggle(-3);
-    blob.setColor(mixHex(drops), { duration: 450 });
-    lastSpoken = '';
-    renderReadout(drops);
-  }
-
-  function pour() {
-    if (!totalDrops(drops) || inFlight || won) return;
-    clearHints();
-    drops = emptyDrops();
-    history = [];
-    sfx.pour();
-    blob.shake();
-    blob.setColor(null, { duration: 700 });
-    lastSpoken = '';
-    renderReadout(drops);
-  }
-
-  undoBtn.addEventListener('click', undo);
-  pourBtn.addEventListener('click', pour);
-
   function giveHint() {
     if (!level || won) return;
     hinted = true;
-    clearHints();
-    const s = suggest(drops, history, level.recipe);
+    brush.clearHints();
+    const s = suggest(brush.drops, brush.history, level.recipe);
     sfx.hint();
+    const line = brush.pointAt(s);
+    if (!line) return;
     if (s.kind === 'add') {
       const paint = PAINT_BY_ID[s.pigment];
-      jarBtns.get(s.pigment)!.classList.add('is-hinted');
       showBubble(`Добавь <b style="--c:${paint.hex}">${paint.genitive}</b>!`);
-      say(`add-${s.pigment}`);
-    } else if (s.kind === 'undo') {
-      undoBtn.classList.add('is-hinted');
-      showBubble('Многовато! Убери последнюю каплю');
-      say('too-much');
-    } else if (s.kind === 'pour') {
-      pourBtn.classList.add('is-hinted');
-      showBubble('Давай начнём сначала!');
-      say('start-over');
-    }
+    } else showBubble(s.kind === 'undo' ? 'Многовато! Убери последнюю каплю' : 'Давай начнём сначала!');
+    say(line);
   }
 
   function giveIdea() {
@@ -318,14 +240,14 @@ export function mixerScreen(levelIndex: number | null): Screen {
       `А если смешать ${used.map((p) => `<i class="dot" style="--c:${PAINT_BY_ID[p].hex}"></i>`).join(' + ')} ?`,
       4000,
     );
-    used.forEach((p) => jarBtns.get(p)!.classList.add('is-hinted'));
+    used.forEach((p) => brush.jars.get(p)!.classList.add('is-hinted'));
     say(`idea-${c.id}`);
   }
 
   // ---------- win ----------
   function win(isNew: boolean) {
     won = true;
-    clearHints();
+    brush.clearHints();
     const stars = starsFor(actions, totalDrops(level!.recipe), hinted);
     store.setStars(level!.id, stars);
     blob.setBaseMood('happy');
@@ -333,7 +255,7 @@ export function mixerScreen(levelIndex: number | null): Screen {
     blob.jump();
     sfx.win();
     say(`win-${level!.id}`);
-    const usedColors = PIGMENTS.filter((p) => drops[p] > 0).map((p) => PAINT_BY_ID[p].hex);
+    const usedColors = PIGMENTS.filter((p) => brush.drops[p] > 0).map((p) => PAINT_BY_ID[p].hex);
     burst([level!.hex, ...usedColors, '#FFD21F']);
     setTimeout(() => showWin(stars, isNew), 900);
   }
@@ -382,23 +304,14 @@ export function mixerScreen(levelIndex: number | null): Screen {
     );
   }
 
-  // ---------- keyboard ----------
-  const onKey = (e: KeyboardEvent) => {
-    if (e.target instanceof HTMLButtonElement && (e.key === 'Enter' || e.key === ' ')) return;
-    const idx = Number(e.key) - 1;
-    if (idx >= 0 && idx < shelf.length) addDrop(shelf[idx].id, jarBtns.get(shelf[idx].id)!);
-    else if (e.key === 'Backspace' || (e.key === 'z' && (e.metaKey || e.ctrlKey))) undo();
-    else if (e.key === 'Delete') pour();
-  };
-
   const cleanup: (() => void)[] = [];
 
   return {
     el: root,
     mount() {
-      renderReadout(drops);
+      renderReadout(brush.drops);
       warmup();
-      window.addEventListener('keydown', onKey);
+      window.addEventListener('keydown', brush.onKey);
       if (level) {
         preload([`win-${level.id}`, ...PAINTS.map((p) => `add-${p.id}`)]);
         setTimeout(() => say(`task-${level.id}`), 350);
@@ -414,7 +327,7 @@ export function mixerScreen(levelIndex: number | null): Screen {
       cleanup.forEach((f) => f());
       clearTimeout(speakTimer);
       speech.dispose();
-      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('keydown', brush.onKey);
       clearEffects();
     },
   };

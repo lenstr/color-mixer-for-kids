@@ -3,33 +3,21 @@
 // spreads from the finger. Modes (coloring/rules.ts) decide whether hint
 // dots show the real colors and whether a wrong color sticks.
 
-import { type Drops, type Pigment, PIGMENTS, distance, emptyDrops, mixHex, totalDrops } from '../color';
-import {
-  COLOR_BY_ID,
-  MATCH,
-  MAX_DROPS,
-  MIX_COLORS,
-  type NamedColor,
-  shelfPaints,
-  PAINT_BY_ID,
-  basicColors,
-  colorLabel,
-  nearest,
-  suggest,
-} from '../data';
+import { type Drops, PIGMENTS, distance, mixHex, totalDrops } from '../color';
+import { COLOR_BY_ID, MATCH, MIX_COLORS, type NamedColor, basicColors, colorLabel, shelfPaints, suggest } from '../data';
 import type { Picture, Region } from '../coloring/pictures';
 import { emptyFill, pictureSVG, rasterize } from '../coloring/render';
 import { type Anchor, anchors } from '../coloring/anchors';
 import { MODES, isComplete, isPerfect } from '../coloring/rules';
 import { PaintBlob, swatchSVG } from '../blob';
-import { jarShelf } from '../jar';
-import { type Point, clearEffects, flyDrop, jarMouth, reduced, splash } from '../effects';
+import { paintBrush } from '../brush';
+import { type Point, clearEffects, flyDrop, reduced, splash } from '../effects';
 import { icon } from '../icons';
 import { sfx } from '../audio';
 import { preload, say } from '../speech';
 import { type Artwork, type PaintMode, store } from '../storage';
 import { burst, warmup } from '../confetti';
-import { $, type Route, type Screen, html, restartClass, speechBubble, toast, topBar } from '../ui';
+import { $, type Route, type Screen, html, restartClass, speechBubble, topBar } from '../ui';
 
 /** A picture painted as part of the story, with its own rules. */
 export interface PaintStory {
@@ -62,9 +50,6 @@ const SPLAT = (() => {
   return `${d}Z`;
 })();
 
-/** Pigments of a recipe as a drop history, so undo works on a picked color too. */
-const historyOf = (d: Drops) => PIGMENTS.flatMap((p) => Array<Pigment>(d[p]).fill(p));
-
 export function paintScreen(pic: Picture, story?: PaintStory): Screen {
   const mode = story?.mode ?? store.paintMode;
   const modeInfo = MODES.find((m) => m.id === mode)!;
@@ -74,9 +59,6 @@ export function paintScreen(pic: Picture, story?: PaintStory): Screen {
   art.ok = art.ok.filter((id) => art.fills[id] && regionById.has(id));
   const undoStack: Artwork[] = [];
 
-  let drops = emptyDrops();
-  let history: Pigment[] = [];
-  let inFlight = 0;
   let lastWrong: Region | null = null;
   let clearTimer = 0;
   let doneTimer = 0;
@@ -109,11 +91,6 @@ export function paintScreen(pic: Picture, story?: PaintStory): Screen {
           <button class="btn btn-hint" data-hint>${icon.bulb}<span>Подсказка</span></button>
         </div>
       </aside>
-      <div class="shelf">
-        <button class="tool" data-tool="undo" aria-label="Убрать каплю">${icon.undo}<span>Убрать</span></button>
-        <div class="jars"></div>
-        <button class="tool" data-tool="pour" aria-label="Вылить краску">${icon.pour}<span>Вылить</span></button>
-      </div>
     </div>`);
   root.append(grid);
 
@@ -124,9 +101,6 @@ export function paintScreen(pic: Picture, story?: PaintStory): Screen {
   const nameEl = $(grid, '.brush-name');
   const myColors = $(grid, '.my-colors');
   const hintBtn = $<HTMLButtonElement>(grid, '[data-hint]');
-  const jarsEl = $(grid, '.jars');
-  const dropUndoBtn = $<HTMLButtonElement>(grid, '[data-tool="undo"]');
-  const pourBtn = $<HTMLButtonElement>(grid, '[data-tool="pour"]');
   const undoBtn = $<HTMLButtonElement>(grid, '[data-act="undo"]');
   const clearBtn = $<HTMLButtonElement>(grid, '[data-act="clear"]');
   const saveBtn = $<HTMLButtonElement>(grid, '[data-act="save"]');
@@ -138,6 +112,26 @@ export function paintScreen(pic: Picture, story?: PaintStory): Screen {
   const blob = new PaintBlob({ face: true, color: null, seed: 5 });
   brushBlobEl.prepend(blob.el);
   blob.setBaseMood('hungry');
+
+  const brush = paintBrush({
+    paints: shelfPaints(store.gold),
+    blob,
+    bubble: showBubble,
+    onAdd: renderBrush,
+    onLanded(mix) {
+      const found = brush.discover(mix);
+      if (!found) return;
+      brush.cheer(found);
+      renderMyColors();
+    },
+    onChange: renderBrush,
+    onClearHints() {
+      myColors.querySelectorAll('.is-hinted').forEach((b) => b.classList.remove('is-hinted'));
+      svg.querySelectorAll('.is-hinted, .is-wanted').forEach((n) => n.classList.remove('is-hinted', 'is-wanted'));
+    },
+    onCtrlZ: undoStroke,
+  });
+  grid.append(brush.el);
 
   // ---------- picture ----------
 
@@ -280,13 +274,14 @@ export function paintScreen(pic: Picture, story?: PaintStory): Screen {
   });
 
   function paintRegion(r: Region, at: DOMPoint, page: Point) {
-    clearHints();
+    brush.clearHints();
+    const drops = brush.drops;
     const hex = mixHex(drops);
     if (!hex) {
       sfx.full();
       blob.shake();
       showBubble('Набери краску!');
-      jarBtns.forEach((b) => b.classList.add('is-hinted'));
+      brush.jars.forEach((b) => b.classList.add('is-hinted'));
       say('need-paint');
       return;
     }
@@ -352,7 +347,8 @@ export function paintScreen(pic: Picture, story?: PaintStory): Screen {
   // ---------- picture tools ----------
 
   undoBtn.disabled = true;
-  undoBtn.addEventListener('click', () => {
+  undoBtn.addEventListener('click', undoStroke);
+  function undoStroke() {
     const prev = undoStack.pop();
     if (!prev) return;
     sfx.undo();
@@ -361,7 +357,7 @@ export function paintScreen(pic: Picture, story?: PaintStory): Screen {
     art.ok = prev.ok;
     redraw(before);
     persist();
-  });
+  }
 
   clearBtn.addEventListener('click', () => {
     if (!Object.keys(art.fills).length) return;
@@ -411,75 +407,6 @@ export function paintScreen(pic: Picture, story?: PaintStory): Screen {
 
   // ---------- brush ----------
 
-  const shelf = shelfPaints(store.gold);
-  const jarBtns = jarShelf(jarsEl, shelf, (p) => addDrop(p, jarBtns.get(p)!));
-
-  function addDrop(p: Pigment, jar: HTMLElement) {
-    if (totalDrops(drops) >= MAX_DROPS) {
-      sfx.full();
-      blob.shake();
-      showBubble('Я уже полная! Вылей краску');
-      pourBtn.classList.add('is-hinted');
-      say('full');
-      return;
-    }
-    clearHints();
-    drops = { ...drops, [p]: drops[p] + 1 };
-    history.push(p);
-    const snapshot = { ...drops };
-    const paint = PAINT_BY_ID[p];
-    sfx.squeeze(p);
-    restartClass(jar, 'is-squeezed');
-    blob.expect();
-    inFlight++;
-    renderBrush();
-    flyDrop(jarMouth(jar), blob.mouthPoint(), paint.hex, () => {
-      inFlight--;
-      paintTools();
-      sfx.plop(p);
-      blob.eat(paint.hex, mixHex(snapshot));
-      splash(blob.mouthPoint(), paint.hex);
-      discover(snapshot);
-    });
-  }
-
-  function discover(d: Drops) {
-    const n = nearest(d);
-    if (!n || n.dist >= MATCH || n.color.basic || !store.discover(n.color.id)) return;
-    sfx.discover();
-    blob.jump();
-    toast('Новый цвет!', n.color.name, n.color.hex);
-    say(`found-${n.color.id}`);
-    if (store.discoveredCount() === MIX_COLORS.length) setTimeout(() => say('all-found'), 2200);
-    renderMyColors();
-  }
-
-  function setBrush(d: Drops, hex: string | null) {
-    drops = d;
-    history = historyOf(d);
-    blob.setColor(hex, { duration: 450 });
-    renderBrush();
-  }
-
-  dropUndoBtn.addEventListener('click', () => {
-    if (!history.length || inFlight) return;
-    clearHints();
-    const p = history.pop()!;
-    drops = { ...drops, [p]: drops[p] - 1 };
-    sfx.undo();
-    blob.wiggle(-3);
-    blob.setColor(mixHex(drops), { duration: 450 });
-    renderBrush();
-  });
-
-  pourBtn.addEventListener('click', () => {
-    if (!totalDrops(drops) || inFlight) return;
-    clearHints();
-    sfx.pour();
-    blob.shake();
-    setBrush(emptyDrops(), null);
-  });
-
   function renderMyColors() {
     const colors = [...basicColors(store.gold), ...MIX_COLORS.filter((c) => store.isDiscovered(c.id))];
     myColors.innerHTML = colors
@@ -495,28 +422,24 @@ export function paintScreen(pic: Picture, story?: PaintStory): Screen {
   }
 
   function pickColor(c: NamedColor) {
-    if (inFlight) return;
-    clearHints();
+    if (brush.inFlight) return;
+    brush.clearHints();
     sfx.squeeze(dominant(c.recipe));
     blob.eat(c.hex, c.hex);
-    setBrush({ ...c.recipe }, c.hex);
+    brush.set({ ...c.recipe }, c.hex);
     say(`name-${c.id}`);
   }
 
   function markPicked() {
+    const drops = brush.drops;
     myColors.querySelectorAll<HTMLButtonElement>('[data-color]').forEach((b) => {
       const c = COLOR_BY_ID[b.dataset.color!];
       b.classList.toggle('is-on', totalDrops(drops) > 0 && distance(drops, c.recipe) < MATCH);
     });
   }
 
-  /** Undo and pour wait for drops in flight, as in the mixer, and say so by graying out. */
-  function paintTools() {
-    dropUndoBtn.disabled = !history.length || inFlight > 0;
-    pourBtn.disabled = !totalDrops(drops) || inFlight > 0;
-  }
-
   function renderBrush() {
+    const drops = brush.drops;
     const total = totalDrops(drops);
     const hex = mixHex(drops);
     if (!total) {
@@ -527,24 +450,15 @@ export function paintScreen(pic: Picture, story?: PaintStory): Screen {
       nameEl.style.setProperty('--c', hex);
     }
     restartClass(nameEl, 'pop');
-    paintTools();
     blob.setBaseMood(total ? 'smile' : 'hungry');
     markPicked();
   }
 
   // ---------- hints ----------
 
-  function clearHints() {
-    jarBtns.forEach((b) => b.classList.remove('is-hinted'));
-    dropUndoBtn.classList.remove('is-hinted');
-    pourBtn.classList.remove('is-hinted');
-    myColors.querySelectorAll('.is-hinted').forEach((b) => b.classList.remove('is-hinted'));
-    svg.querySelectorAll('.is-hinted, .is-wanted').forEach((n) => n.classList.remove('is-hinted', 'is-wanted'));
-  }
-
   hintBtn.addEventListener('click', () => {
     const r = lastWrong ?? pic.regions.find((x) => !art.ok.includes(x.id));
-    clearHints();
+    brush.clearHints();
     sfx.hint();
     if (!r) {
       showBubble('Все цвета уже точные!');
@@ -556,33 +470,12 @@ export function paintScreen(pic: Picture, story?: PaintStory): Screen {
       .forEach((g) => g.classList.add('is-hinted'));
     revealDot(r.id);
     myColors.querySelector(`[data-color="${target.id}"]`)?.classList.add('is-hinted');
-    const s = suggest(drops, history, target.recipe);
-    const lines = [`name-${target.id}`];
-    if (s.kind === 'add') {
-      jarBtns.get(s.pigment)!.classList.add('is-hinted');
-      lines.push(`add-${s.pigment}`);
-    } else if (s.kind === 'undo') {
-      dropUndoBtn.classList.add('is-hinted');
-      lines.push('too-much');
-    } else if (s.kind === 'pour') {
-      pourBtn.classList.add('is-hinted');
-      lines.push('start-over');
-    }
+    const s = suggest(brush.drops, brush.history, target.recipe);
+    const line = brush.pointAt(s);
     const tail = s.kind === 'done' ? ' Нажми на картинку!' : '';
     showBubble(`Здесь нужен <b style="--c:${target.hex}">${target.name.toLowerCase()}</b>${tail}`, 3600);
-    say(...lines);
+    say(`name-${target.id}`, ...(line ? [line] : []));
   });
-
-  // ---------- keyboard ----------
-
-  const onKey = (e: KeyboardEvent) => {
-    if (e.target instanceof HTMLButtonElement && (e.key === 'Enter' || e.key === ' ')) return;
-    const idx = Number(e.key) - 1;
-    if (idx >= 0 && idx < shelf.length) addDrop(shelf[idx].id, jarBtns.get(shelf[idx].id)!);
-    else if (e.key === 'z' && (e.metaKey || e.ctrlKey)) undoBtn.click();
-    else if (e.key === 'Backspace') dropUndoBtn.click();
-    else if (e.key === 'Delete') pourBtn.click();
-  };
 
   return {
     el: root,
@@ -591,7 +484,7 @@ export function paintScreen(pic: Picture, story?: PaintStory): Screen {
       renderBrush();
       paintHints();
       warmup();
-      window.addEventListener('keydown', onKey);
+      window.addEventListener('keydown', brush.onKey);
       const intro = story?.intro ?? `paint-${pic.id}`;
       preload([intro, 'need-paint', 'wrong-color', 'picture-done', 'picture-perfect']);
       setTimeout(() => {
@@ -606,7 +499,7 @@ export function paintScreen(pic: Picture, story?: PaintStory): Screen {
       speech.dispose();
       clearTimeout(clearTimer);
       clearTimeout(doneTimer);
-      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('keydown', brush.onKey);
     },
   };
 }
