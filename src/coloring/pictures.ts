@@ -51,6 +51,17 @@ function band(cx: number, cy: number, R: number, r: number) {
   return `M${cx - R} ${cy}A${R} ${R} 0 0 1 ${cx + R} ${cy}L${cx + r} ${cy}A${r} ${r} 0 0 0 ${cx - r} ${cy}Z`;
 }
 
+/** Five-pointed star centered at (cx, cy), point up. */
+function star(cx: number, cy: number, R: number, r = R * 0.45) {
+  const pts: string[] = [];
+  for (let i = 0; i < 10; i++) {
+    const a = ((-90 + i * 36) * Math.PI) / 180;
+    const k = i % 2 ? r : R;
+    pts.push(`${n(cx + Math.cos(a) * k)} ${n(cy + Math.sin(a) * k)}`);
+  }
+  return `M${pts.join('L')}Z`;
+}
+
 const SKY = rect(0, 0, 400, 400);
 const ground = (y: number) => `M0 ${y}C120 ${y - 16} 280 ${y - 16} 400 ${y}V400H0Z`;
 
@@ -297,8 +308,153 @@ const rainbow: Picture = (() => {
   };
 })();
 
+const rocket: Picture = {
+  id: 'rocket',
+  name: 'Ракета',
+  acc: 'ракету',
+  regions: [
+    { id: 'sky', target: 'navy', d: SKY },
+    { id: 'planet', target: 'lilac', d: circle(78, 92, 38) },
+    { id: 'star1', target: 'yellow', d: star(330, 72, 26) },
+    { id: 'star2', target: 'yellow', d: star(62, 296, 22) },
+    { id: 'star3', target: 'yellow', d: star(338, 262, 17) },
+    { id: 'flame', target: 'orange', d: 'M166 312C156 346 174 372 200 398C226 372 244 346 234 312Z' },
+    { id: 'core', target: 'yellow', d: 'M182 312C178 340 190 358 200 378C210 358 222 340 218 312Z' },
+    { id: 'finL', target: 'red', d: 'M152 222C118 246 102 290 106 334L150 300Z' },
+    { id: 'finR', target: 'red', d: 'M248 222C282 246 298 290 294 334L250 300Z' },
+    { id: 'nozzle', target: 'gray', d: rect(162, 290, 76, 26, 6) },
+    { id: 'body', target: 'white', d: 'M200 52C254 94 266 186 256 300H144C134 186 146 94 200 52Z' },
+    { id: 'nose', target: 'red', d: 'M100 20H300V118Q200 146 100 118Z', clip: 'body' },
+    { id: 'window', target: 'skyblue', d: circle(200, 180, 30) },
+  ],
+  deco:
+    `<ellipse cx="78" cy="92" rx="62" ry="14" transform="rotate(-18 78 92)" fill="none" stroke="${INK}" stroke-width="5"/>` +
+    line('M200 300V286', 4) +
+    `<circle cx="200" cy="180" r="30" fill="none" stroke="${INK}" stroke-width="9"/>` +
+    gloss('M184 168C188 160 194 156 202 154', 7) +
+    gloss('M164 220C164 180 170 140 186 110', 9) +
+    face(200, 236, 0.6) +
+    dot(150, 40, 4, '#fff') +
+    dot(260, 130, 3, '#fff') +
+    dot(40, 200, 3.5, '#fff') +
+    dot(360, 170, 3, '#fff') +
+    dot(110, 370, 3, '#fff') +
+    dot(300, 360, 4, '#fff'),
+};
+
+const butterfly: Picture = {
+  id: 'butterfly',
+  name: 'Бабочка',
+  acc: 'бабочку',
+  regions: [
+    { id: 'sky', target: 'skyblue', d: SKY },
+    { id: 'sun', target: 'yellow', d: circle(344, 54, 26) },
+    { id: 'grass', target: 'green', d: ground(352) },
+    { id: 'wingUL', target: 'pink', d: 'M196 172C150 86 60 66 48 128C38 190 120 224 196 212Z' },
+    { id: 'wingUR', target: 'pink', d: 'M204 172C250 86 340 66 352 128C362 190 280 224 204 212Z' },
+    { id: 'wingLL', target: 'lilac', d: 'M196 222C138 220 78 252 90 302C102 346 172 332 196 264Z' },
+    { id: 'wingLR', target: 'lilac', d: 'M204 222C262 220 322 252 310 302C298 346 228 332 204 264Z' },
+    { id: 'spotUL', target: 'yellow', d: circle(112, 142, 24), clip: 'wingUL' },
+    { id: 'spotUR', target: 'yellow', d: circle(288, 142, 24), clip: 'wingUR' },
+    { id: 'spotLL', target: 'white', d: circle(138, 290, 17), clip: 'wingLL' },
+    { id: 'spotLR', target: 'white', d: circle(262, 290, 17), clip: 'wingLR' },
+    { id: 'body', target: 'brown', d: ellipse(200, 236, 17, 82) },
+    { id: 'head', target: 'brown', d: circle(200, 134, 27) },
+  ],
+  deco:
+    line('M190 112C182 86 168 70 152 66M210 112C218 86 232 70 248 66', 4.5) +
+    dot(152, 66, 7) +
+    dot(248, 66, 7) +
+    line('M188 200H212M188 230H212M190 260H210', 4) +
+    face(200, 128, 0.5) +
+    rays(344, 54, 34, 46, 8, 22) +
+    grass([30, 80, 320, 370], 384),
+};
+
+const car: Picture = {
+  id: 'car',
+  name: 'Машинка',
+  acc: 'машинку',
+  regions: [
+    { id: 'sky', target: 'skyblue', d: SKY },
+    { id: 'sun', target: 'yellow', d: circle(338, 62, 28) },
+    {
+      id: 'cloud',
+      target: 'white',
+      d: 'M44 112C24 112 22 86 44 84C46 62 76 56 88 74C98 56 130 62 128 86C146 88 146 112 126 112Z',
+    },
+    { id: 'grass', target: 'green', d: ground(300) },
+    { id: 'road', target: 'gray', d: rect(0, 318, 400, 82) },
+    {
+      id: 'body',
+      target: 'red',
+      d: 'M54 294V234Q54 210 78 208L126 204L158 156Q166 144 180 144H266Q280 144 288 156L320 204L328 206Q346 210 346 234V294Z',
+    },
+    { id: 'rear', target: 'skyblue', d: 'M180 160H186V202H138L166 166Q172 160 180 160Z' },
+    { id: 'front', target: 'skyblue', d: 'M198 160H264Q272 160 276 166L300 202H198Z' },
+    { id: 'lamp', target: 'yellow', d: ellipse(334, 236, 9, 12), clip: 'body' },
+    { id: 'tail', target: 'orange', d: rect(54, 226, 14, 22, 4), clip: 'body' },
+    { id: 'wheelL', target: 'black', d: circle(120, 296, 34) },
+    { id: 'wheelR', target: 'black', d: circle(280, 296, 34) },
+    { id: 'hubL', target: 'white', d: circle(120, 296, 13) },
+    { id: 'hubR', target: 'white', d: circle(280, 296, 13) },
+  ],
+  deco:
+    line('M192 204V284M126 204H320', 4) +
+    line('M210 228H230', 5) +
+    gloss('M84 228C92 222 104 220 116 220', 8) +
+    `<path d="M14 362H58M110 362H154M206 362H250M302 362H346" stroke="#fff" stroke-width="7" stroke-linecap="round"/>` +
+    rays(338, 62, 38, 50, 8, 0) +
+    face(338, 58, 0.5) +
+    grass([30, 380], 312),
+};
+
+const cat: Picture = {
+  id: 'cat',
+  name: 'Котик',
+  acc: 'котика',
+  regions: [
+    { id: 'sky', target: 'skyblue', d: SKY },
+    { id: 'grass', target: 'green', d: ground(332) },
+    { id: 'tail', target: 'orange', d: 'M258 300C330 304 352 244 326 206C314 190 294 198 302 214C320 248 306 278 256 274Z' },
+    { id: 'earL', target: 'orange', d: 'M140 142L136 62L196 106Z' },
+    { id: 'earR', target: 'orange', d: 'M260 142L264 62L204 106Z' },
+    { id: 'innerL', target: 'pink', d: 'M150 126L148 84L182 108Z' },
+    { id: 'innerR', target: 'pink', d: 'M250 126L252 84L218 108Z' },
+    { id: 'body', target: 'orange', d: ellipse(200, 282, 80, 66) },
+    { id: 'belly', target: 'white', d: ellipse(200, 300, 42, 44), clip: 'body' },
+    { id: 'pawL', target: 'white', d: ellipse(168, 344, 24, 15) },
+    { id: 'pawR', target: 'white', d: ellipse(232, 344, 24, 15) },
+    { id: 'head', target: 'orange', d: ellipse(200, 168, 70, 62) },
+    { id: 'muzzle', target: 'white', d: ellipse(200, 196, 34, 22), clip: 'head' },
+  ],
+  deco:
+    line('M186 114L190 130M200 110V128M214 114L210 130', 4.5) +
+    `<ellipse cx="176" cy="160" rx="7" ry="10" fill="${INK}"/><circle cx="178.5" cy="156" r="2.6" fill="#fff"/>` +
+    `<ellipse cx="224" cy="160" rx="7" ry="10" fill="${INK}"/><circle cx="226.5" cy="156" r="2.6" fill="#fff"/>` +
+    `<path d="M190 184H210L200 195Z" fill="#FF98A7" stroke="${INK}" stroke-width="3.5" stroke-linejoin="round"/>` +
+    line('M200 195Q194 206 184 202M200 195Q206 206 216 202', 4) +
+    line('M160 192L120 184M160 202L122 206M240 192L280 184M240 202L278 206', 3.5) +
+    line('M162 340V350M174 340V352M226 340V352M238 340V350', 3.5) +
+    gloss('M150 140C152 128 160 120 170 116', 8) +
+    grass([30, 80, 330, 370], 372),
+};
+
 /** In the order kids meet them, simplest first. */
-export const PICTURES: Picture[] = [apple, mushroom, carrot, flower, fish, house, ladybug, rainbow];
+export const PICTURES: Picture[] = [
+  apple,
+  mushroom,
+  carrot,
+  flower,
+  fish,
+  cat,
+  house,
+  car,
+  ladybug,
+  butterfly,
+  rocket,
+  rainbow,
+];
 
 export const PICTURE_BY_ID = Object.fromEntries(PICTURES.map((p) => [p.id, p])) as Record<string, Picture>;
 
